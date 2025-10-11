@@ -1,0 +1,77 @@
+// Zmienne
+$primary-color: #667eea;
+$secondary-color: #764ba2;
+$transition: all 0.3s ease;
+
+// Navbar
+.navbar {
+  background: linear-gradient(90deg, $primary-color 0%, $secondary-color 100%) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 0.75rem 0 !important;
+  margin: 0;
+  width: 100%;
+  margin-bottom: 5rem;
+}
+
+.navbarBrand {
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: white !important;
+  letter-spacing: 1px;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.navLink {
+  font-weight: 500;
+  color: white !important;
+  margin-left: 8px;
+  padding: 8px 12px !important;
+  border-radius: 6px;
+  transition: $transition;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.navItem {
+  position: relative;
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 20px;
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+.navbarToggler {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+
+  &:focus {
+    box-shadow: 0 0 0 0.25rem rgba(255, 255, 255, 0.25);
+  }
+}
+
+@media (max-width: 991px) {
+  .navItem::after {
+    display: none;
+  }
+
+  .navLink {
+    padding: 12px 8px !important;
+    margin-left: 0;
+  }
+}

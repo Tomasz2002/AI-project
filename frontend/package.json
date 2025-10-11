@@ -10,31 +10,28 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.4",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.12.2",
-    "mammoth": "^1.11.0",
-    "pdfjs-dist": "^5.4.296",
+    "@types/react-i18next": "^7.8.3",
+    "@types/react-router-dom": "^5.3.3",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "i18next": "^25.6.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-player": "^3.3.3",
+    "react-i18next": "^16.0.0",
     "react-router-dom": "^7.9.4",
-    "react-toastify": "^11.0.5",
-    "zod": "^4.1.12",
-    "zustand": "^5.0.8"
+    "react-toastify": "^11.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
+    "@types/react-toastify": "^4.0.2",
     "@vitejs/plugin-react": "^5.0.4",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
     "globals": "^16.4.0",
+    "sass": "^1.93.2",
     "vite": "^7.1.7"
   }
 }
