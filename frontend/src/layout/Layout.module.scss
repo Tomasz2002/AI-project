@@ -1,0 +1,25 @@
+.layoutContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.sidebar {
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.content {
+  flex: 1;
+  overflow: auto;
+  margin-top: 94px;
+}
+
+header:empty,
+footer:empty {
+  display: none;
+}
+.footer{
+    flex-shrink: 0;
+    margin-top: auto;
+}

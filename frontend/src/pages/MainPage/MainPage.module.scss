@@ -1,12 +1,5 @@
-// Zmienne
-$primary-color: #667eea;
-$secondary-color: #764ba2;
-$dark-color: #333;
-$light-color: #f5f5f5;
-$text-secondary: #ccc;
-$transition: all 0.3s ease;
+@use "../../styles/variables" as *;
 
-// Główny wrapper
 .pageWrapper {
   display: flex;
   flex-direction: column;
@@ -18,13 +11,12 @@ $transition: all 0.3s ease;
   flex: 1;
 }
 
-// Hero Section
 .heroSection {
-  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
-  color: white;
+  background: $hero-gradient;
+  color: $text-on-dark;
   padding: 80px 20px;
   margin-bottom: 80px;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   text-align: center;
 
   @media (max-width: 768px) {
@@ -34,7 +26,7 @@ $transition: all 0.3s ease;
 }
 
 .heroTitle {
-  font-weight: 700;
+  font-weight: $font-weight-bold;
   font-size: 3rem;
   margin-bottom: 16px;
 
@@ -44,7 +36,7 @@ $transition: all 0.3s ease;
 }
 
 .heroSubtitle {
-  font-weight: 300;
+  font-weight: $font-weight-light;
   font-size: 1.5rem;
   margin-bottom: 32px;
   opacity: 0.95;
@@ -57,18 +49,18 @@ $transition: all 0.3s ease;
 .ctaButton {
   padding: 12px 40px;
   font-size: 1.1rem;
-  font-weight: 600;
-  background-color: white;
+  font-weight: $font-weight-semibold;
+  background-color: $white;
   color: $primary-color;
-  border-radius: 8px;
+  border-radius: $border-radius-md;
   border: none;
   cursor: pointer;
-  transition: $transition;
+  transition: $transition-base;
 
   &:hover {
-    background-color: #f0f0f0;
+    background-color: #f0f0f0; // Ten kolor można też dodać do zmiennych jako np. $light-color-hover
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: $box-shadow-md;
   }
 
   &:active {
@@ -76,7 +68,6 @@ $transition: all 0.3s ease;
   }
 }
 
-// Features Section
 .featuresSection {
   margin-bottom: 80px;
 
@@ -88,8 +79,8 @@ $transition: all 0.3s ease;
 .sectionTitle {
   text-align: center;
   margin-bottom: 48px;
-  font-weight: 700;
-  color: $dark-color;
+  font-weight: $font-weight-bold;
+  color: $text-on-light;
   font-size: 2.5rem;
 
   @media (max-width: 768px) {
@@ -99,36 +90,35 @@ $transition: all 0.3s ease;
 
 .featureCard {
   border: none;
-  border-radius: 12px;
+  border-radius: $border-radius-lg;
   height: 100%;
-  transition: $transition;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: $transition-base;
+  box-shadow: $box-shadow-sm;
 
   &:hover {
     transform: translateY(-8px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: $box-shadow-hover;
   }
 
   .cardTitle {
-    font-weight: 600;
-    color: $dark-color;
+    font-weight: $font-weight-semibold;
+    color: $text-on-light;
     margin-bottom: 12px;
   }
 
   .cardText {
     font-size: 0.95rem;
-    color: #666;
+    color: $text-secondary;
     line-height: 1.6;
   }
 }
 
-// CTA Section
 .ctaSection {
   text-align: center;
   padding: 60px 20px;
-  background-color: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background-color: $white;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-sm;
   margin-bottom: 80px;
 
   @media (max-width: 768px) {
@@ -139,8 +129,8 @@ $transition: all 0.3s ease;
 
 .ctaText {
   margin-bottom: 24px;
-  color: $dark-color;
-  font-weight: 600;
+  color: $text-on-light;
+  font-weight: $font-weight-semibold;
   font-size: 1.75rem;
 
   @media (max-width: 768px) {
@@ -151,17 +141,17 @@ $transition: all 0.3s ease;
 .outlinedButton {
   padding: 10px 32px;
   font-size: 1rem;
-  font-weight: 600;
-  border-radius: 8px;
+  font-weight: $font-weight-semibold;
+  border-radius: $border-radius-md;
   border: 2px solid $primary-color;
   background-color: transparent;
   color: $primary-color;
   cursor: pointer;
-  transition: $transition;
+  transition: $transition-base;
 
   &:hover {
     background-color: $primary-color;
-    color: white;
+    color: $white;
     transform: translateY(-2px);
   }
 

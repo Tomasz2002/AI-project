@@ -1,21 +1,13 @@
-// Zmienne
-$primary-color: #667eea;
-$dark-bg: #333;
-$dark-bg-lighter: #555;
-$text-secondary: #ccc;
-$text-muted: #999;
-$transition: all 0.3s ease;
+@use "../../styles/variables" as *;
 
-// Footer
 .footer {
-  background: linear-gradient(135deg, $dark-bg 0%, $dark-bg-lighter 100%);
-  color: white;
+  background: $footer-gradient;
+  color: $text-on-dark;
   padding: 48px 0 0;
   margin-top: auto;
   width: 100%;
 }
 
-// Kolumny
 .column {
   margin-bottom: 30px;
 
@@ -25,22 +17,21 @@ $transition: all 0.3s ease;
 }
 
 .columnTitle {
-  font-weight: 700;
+  font-weight: $font-weight-bold;
   margin-bottom: 16px;
-  color: white;
+  color: $text-on-dark;
   font-size: 1.1rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .columnText {
-  color: $text-secondary;
+  color: $text-light-secondary;
   margin-bottom: 8px;
   line-height: 1.6;
   font-size: 0.95rem;
 }
 
-// Linki
 .linksList {
   list-style: none;
   padding: 0;
@@ -48,11 +39,11 @@ $transition: all 0.3s ease;
 }
 
 .link {
-  color: $text-secondary;
+  color: $text-light-secondary;
   text-decoration: none;
   margin-bottom: 12px;
   display: inline-block;
-  transition: $transition;
+  transition: $transition-base;
   padding-left: 0;
 
   &:hover {
@@ -61,7 +52,6 @@ $transition: all 0.3s ease;
   }
 }
 
-// Social links
 .socialLinks {
   display: flex;
   flex-direction: column;
@@ -69,11 +59,11 @@ $transition: all 0.3s ease;
 }
 
 .socialLink {
-  color: $text-secondary;
+  color: $text-light-secondary;
   text-decoration: none;
-  transition: $transition;
+  transition: $transition-base;
   display: inline-block;
-  font-weight: 500;
+  font-weight: $font-weight-normal;
 
   &:hover {
     color: $primary-color;
@@ -81,10 +71,9 @@ $transition: all 0.3s ease;
   }
 }
 
-// Divider
 .divider {
   height: 1px;
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba($white, 0.2);
   margin: 32px 0;
 
   @media (max-width: 768px) {
@@ -92,11 +81,10 @@ $transition: all 0.3s ease;
   }
 }
 
-// Bottom section
 .bottomSection {
   padding: 24px 0;
   text-align: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba($white, 0.1);
 }
 
 .copyright {
@@ -105,7 +93,6 @@ $transition: all 0.3s ease;
   margin: 0;
 }
 
-// Responsive
 @media (max-width: 576px) {
   .footer {
     padding: 40px 0 0;

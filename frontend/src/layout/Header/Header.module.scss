@@ -1,0 +1,92 @@
+@use "../../styles/variables" as *;
+
+.navbar {
+  background: $primary-gradient !important;
+  box-shadow: $box-shadow-sm;
+  padding: 0.75rem 0 !important;
+  margin: 0;
+  width: 100%;
+}
+
+.navbarBrand {
+  font-weight: $font-weight-bold;
+  font-size: 1.5rem;
+  color: $text-on-dark !important;
+  letter-spacing: 1px;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.navLink {
+  font-weight: $font-weight-normal;
+  color: $text-on-dark !important;
+  margin-left: 8px;
+  padding: 8px 12px !important;
+  border-radius: $border-radius-sm;
+  transition: $transition-base;
+
+  &:hover {
+    background-color: rgba($white, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.navItem {
+  position: relative;
+
+  &:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 20px;
+    width: 1px;
+    background-color: rgba($white, 0.2);
+  }
+}
+
+.navbarToggler {
+  border-color: rgba($white, 0.5) !important;
+
+  &:focus {
+    box-shadow: 0 0 0 0.25rem rgba($white, 0.25);
+  }
+}
+.ctaButton {
+  padding: 8px 20px;
+  font-size: 0.95rem;
+  font-weight: $font-weight-semibold;
+  background-color: $white;
+  color: $primary-color;
+  border-radius: $border-radius-md;
+  border: none;
+  cursor: pointer;
+  transition: $transition-base;
+
+  &:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: $box-shadow-sm;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+@media (max-width: 991px) {
+  .navItem::after {
+    display: none;
+  }
+
+  .navLink {
+    padding: 12px 8px !important;
+    margin-left: 0;
+  }
+}
