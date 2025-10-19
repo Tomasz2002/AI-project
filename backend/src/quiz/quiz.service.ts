@@ -1,35 +1,83 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { CreateQuizDto } from './dto/create-quiz.dto';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, isValidObjectId } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
+import { Quiz, IQuiz } from '../models/quiz.model';
+import { GenerateQuizDto } from './dto/generate-quiz.dto';
+
+// Prosty magazyn w pamięci do tymczasowego przechowywania danych między krokami formularza.
+const sessionStore = new Map<string, { file: Express.Multer.File, youtubeUrl: string }>();
 
 @Injectable()
 export class QuizService {
-  // Utworzenie loggera do lepszego monitorowania działania serwisu
-  private readonly logger = new Logger(QuizService.name);
+  constructor(@InjectModel(Quiz.name) private quizModel: Model<IQuiz>) {}
 
-  async generateQuiz(createQuizDto: CreateQuizDto) {
-    this.logger.log('Rozpoczynanie generowania quizu...');
-    this.logger.log(`Otrzymane dane: ${JSON.stringify(createQuizDto)}`);
+  /**
+   * Znajduje quiz w bazie danych na podstawie jego ID.
+   * Zawiera walidację formatu ID.
+   * @param id - ID quizu do znalezienia.
+   * @returns Znaleziony dokument quizu lub null.
+   */
+  async findById(id: string): Promise<IQuiz | null> {
+    // Krok 1: Sprawdź, czy podane ID ma poprawny format MongoDB ObjectId.
+    if (!isValidObjectId(id)) {
+      console.error(`[Service Error] Nieprawidłowy format ID: ${id}`);
+      // Rzucenie błędu tutaj zostanie złapane przez blok try...catch w kontrolerze.
+      throw new BadRequestException('Nieprawidłowy format ID.');
+    }
+    
+    // Krok 2: Wyszukaj dokument w bazie danych.
+    return this.quizModel.findById(id).exec();
+  }
 
-    const { youtubeUrl, questionCount, pages } = createQuizDto;
+  /**
+   * Obsługuje przesłany plik i link (Krok 1 formularza).
+   * Zapisuje dane tymczasowo w pamięci i zwraca unikalne ID sesji.
+   */
+  async handleFileUpload(file: Express.Multer.File, youtubeUrl: string): Promise<string> {
+    const sessionId = uuidv4();
+    sessionStore.set(sessionId, { file, youtubeUrl });
+    console.log(`[Session ${sessionId}] Plik ${file.originalname} i URL zostały zapisane tymczasowo.`);
+    return sessionId;
+  }
 
-    // Tutaj znajdzie się cała główna logika aplikacji:
-    // 1. Pobranie transkrypcji z YouTube (używając youtubeUrl).
-    // 2. Wczytanie i przetworzenie dokumentów (jeśli zostały dodane).
-    // 3. Połączenie tekstów i wybranie fragmentów z określonych stron (używając 'pages').
-    // 4. Wysłanie zapytania do AI w celu wygenerowania pytań (w ilości 'questionCount').
-    // 5. Zwrócenie wygenerowanego quizu.
+  /**
+   * Tworzy nowy dokument quizu w bazie danych (Krok 2 formularza).
+   */
+  async createQuiz(generateQuizDto: GenerateQuizDto): Promise<IQuiz> {
+    const { sessionId, pageFrom, pageTo, quizCount, questionsToUnlock } = generateQuizDto;
 
-    // Przykładowa, tymczasowa odpowiedź
-    return {
-      message: 'Quiz jest w trakcie generowania.',
-      params: {
-        youtubeUrl,
-        questionCount,
-        selectedPages: pages, // Bezpiecznie odwołujemy się do 'pages'
-      },
-      // W przyszłości tutaj znajdą się pytania:
-      // questions: [...]
-    };
+    const sessionData = sessionStore.get(sessionId);
+    if (!sessionData) {
+      throw new NotFoundException('Nie znaleziono sesji. Prześlij materiały ponownie.');
+    }
+
+    // TODO: Tutaj w przyszłości umieścisz logikę generowania pytań przez AI.
+    // Poniżej znajdują się przykładowe, statyczne dane na potrzeby demonstracji.
+    const generatedQuizzesExample = [{
+        timestamp: 120,
+        questions: [{
+            questionText: 'To jest przykładowe pytanie wygenerowane z dokumentu.',
+            options: ['Odp A', 'Odp B', 'Odp C'],
+            correctAnswer: 'Odp B',
+        }],
+    }];
+
+    const newQuiz = new this.quizModel({
+      youtubeUrl: sessionData.youtubeUrl,
+      youtubeVideoId: 'pending', // TODO: Wyodrębnij ID z URL
+      documentFileName: sessionData.file.originalname,
+      documentFilePath: sessionData.file.path, // Ścieżka, jeśli zapisujesz plik na dysku
+      pageFrom,
+      pageTo,
+      quizQuestionCount: quizCount,
+      questionsToUnlock,
+      generatedQuizzes: generatedQuizzesExample,
+    });
+
+    // Usuń dane sesji po ich wykorzystaniu, aby nie zaśmiecać pamięci.
+    sessionStore.delete(sessionId);
+
+    return newQuiz.save();
   }
 }
-

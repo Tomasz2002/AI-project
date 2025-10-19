@@ -1,19 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { MongooseModule } from '@nestjs/mongoose';
 import { QuizModule } from './quiz/quiz.module';
-import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
-    // Moduł do obsługi zmiennych środowiskowych (.env)
-    ConfigModule.forRoot({
-      isGlobal: true, // Udostępnij konfigurację w całej aplikacji
-    }),
-    // Importujemy nasz moduł do obsługi quizów
+    // ZMIEŃ NAZWĘ BAZY DANYCH TUTAJ:
+    MongooseModule.forRoot('mongodb://127.0.0.1:27017/quiz-app'),
     QuizModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}

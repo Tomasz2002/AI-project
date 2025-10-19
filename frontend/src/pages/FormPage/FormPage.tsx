@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styles from './FormPage.module.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { uploadMaterials, generateQuiz } from '../../services/quizApi'; 
 
 interface FormErrors {
   youtubeUrl?: string;
@@ -10,21 +12,33 @@ interface FormErrors {
 }
 
 const FormPage: React.FC = () => {
+  const navigate = useNavigate();
+
+  // --- Stany komponentu ---
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [pageFrom, setPageFrom] = useState(1);
   const [pageTo, setPageTo] = useState(10);
   const [quizCount, setQuizCount] = useState(10);
   const [questionsToUnlock, setQuestionsToUnlock] = useState(1);
+
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  // Stan do przechowywania ID sesji zwróconego przez backend
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+
+  // --- Funkcje pomocnicze ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) setFile(e.target.files[0]);
+    if (e.target.files?.[0]) {
+      setFile(e.target.files[0]);
+    }
   };
 
+  // --- Logika walidacji ---
   const validateStep1 = (): boolean => {
     const newErrors: FormErrors = {};
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
@@ -35,7 +49,9 @@ const FormPage: React.FC = () => {
       newErrors.youtubeUrl = 'Proszę podać prawidłowy link do YouTube.';
     }
 
-    if (!file) newErrors.file = 'Musisz dodać plik z notatkami.';
+    if (!file) {
+      newErrors.file = 'Musisz dodać plik z notatkami.';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -58,39 +74,49 @@ const FormPage: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleNextStep = () => {
-    if (validateStep1()) {
-      setCurrentStep(2);
-      setErrors({});
-    }
-  };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateStep2()) return;
+  // --- Obsługa formularza ---
+  const handleNextStep = async () => {
+    if (!validateStep1() || !file) return;
 
     setIsLoading(true);
     setErrors({});
 
-    console.log({
-      youtubeUrl,
-      fileName: file?.name,
-      pageFrom,
-      pageTo,
-      quizCount,
-      questionsToUnlock
-    });
-
-    setTimeout(() => {
+    try {
+      const data = await uploadMaterials(youtubeUrl, file);
+      setSessionId(data.sessionId);
+      setCurrentStep(2);
+    } catch (error: any) {
+      setErrors({ file: error.message || 'Wystąpił nieoczekiwany błąd serwera.' });
+    } finally {
       setIsLoading(false);
-      setIsSuccess(true);
-      setTimeout(() => {
-        setIsSuccess(false);
-        alert('Quiz został pomyślnie utworzony! (symulacja)');
-      }, 1000);
-    }, 2000);
+    }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateStep2() || !sessionId) return;
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const result = await generateQuiz(sessionId, pageFrom, pageTo, quizCount, questionsToUnlock);
+      
+      setIsSuccess(true);
+      
+      setTimeout(() => {
+        // Po sukcesie, przekieruj użytkownika na stronę z quizem
+        navigate(`/quiz/${result.quizId}`); 
+      }, 1500);
+
+    } catch (error: any) {
+      setErrors({ pageRange: error.message || 'Wystąpił nieoczekiwany błąd podczas generowania quizu.' });
+      setIsLoading(false); // Zatrzymaj ładowanie w przypadku błędu
+    }
+  };
+
+  // --- Renderowanie komponentu (JSX) ---
   return (
     <div className={styles.pageWrapper}>
       <div className="container my-5">
@@ -102,6 +128,7 @@ const FormPage: React.FC = () => {
             </p>
 
             <form onSubmit={handleSubmit} noValidate>
+              {/* Krok 1: Materiały do nauki */}
               {currentStep === 1 && (
                 <div className={styles.stepContainer}>
                   <div className={`card ${styles.formCard}`}>
@@ -142,13 +169,23 @@ const FormPage: React.FC = () => {
                   </div>
 
                   <div className="d-grid mt-4">
-                    <button type="button" onClick={handleNextStep} className={styles.submitButton}>
-                      Dalej <i className="bi bi-arrow-right ms-2"></i>
+                    <button type="button" onClick={handleNextStep} className={styles.submitButton} disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Przetwarzanie...
+                        </>
+                      ) : (
+                        <>
+                          Dalej <i className="bi bi-arrow-right ms-2"></i>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               )}
 
+              {/* Krok 2: Ustawienia Quizu */}
               {currentStep === 2 && (
                 <div className={styles.stepContainer}>
                   <div className={`card ${styles.formCard}`}>
@@ -223,6 +260,7 @@ const FormPage: React.FC = () => {
                       type="button"
                       onClick={() => setCurrentStep(1)}
                       className={`${styles.backButton} flex-grow-1`}
+                      disabled={isLoading}
                     >
                       <i className="bi bi-arrow-left me-2"></i> Wstecz
                     </button>
@@ -238,7 +276,7 @@ const FormPage: React.FC = () => {
                         </>
                       ) : isSuccess ? (
                         <>
-                          <i className="bi bi-check-circle-fill me-2"> Sukces! </i>
+                          <i className="bi bi-check-circle-fill me-2"></i> Sukces!
                         </>
                       ) : (
                         'Generuj Quiz'

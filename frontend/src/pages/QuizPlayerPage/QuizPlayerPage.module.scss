@@ -1,0 +1,226 @@
+@import '../../styles/variables.scss';
+
+.quizContainer {
+  min-height: 100vh;
+  padding: 3rem 1rem;
+  
+  h1 {
+    font-weight: $font-weight-bold;
+    background: $primary-gradient;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 2rem;
+    font-size: 2.5rem;
+    text-align: center;
+    animation: fadeInDown $animation-duration-medium $animation-easing-smooth;
+  }
+
+  h2 {
+    font-weight: $font-weight-semibold;
+    color: $dark-color;
+    margin-top: 3rem;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+  }
+}
+
+.infoCard {
+  border: none;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-sm;
+  transition: $transition-smooth;
+  animation: fadeInUp $animation-duration-medium $animation-easing-smooth;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: $box-shadow-hover;
+  }
+
+  .card-header {
+    background: $primary-gradient;
+    color: $white;
+    font-weight: $font-weight-semibold;
+    padding: 1rem 1.5rem;
+    border: none;
+  }
+
+  .card-body {
+    padding: 1.5rem;
+
+    p {
+      margin-bottom: 1rem;
+      color: $text-on-light;
+
+      strong {
+        color: $dark-color;
+        font-weight: $font-weight-semibold;
+      }
+    }
+
+    a {
+      color: $primary-color;
+      text-decoration: none;
+      transition: $transition-base;
+      word-break: break-all;
+
+      &:hover {
+        color: $secondary-color;
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+.quizCard {
+  border: none;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-sm;
+  transition: $transition-smooth;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  animation: fadeInUp $animation-duration-medium $animation-easing-smooth;
+  animation-fill-mode: both;
+
+  // Stagger animation dla kolejnych kart
+  @for $i from 1 through 10 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{$i * 0.1}s;
+    }
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $box-shadow-hover;
+  }
+
+  .card-header {
+    background: $success-gradient;
+    color: $white;
+    font-weight: $font-weight-semibold;
+    padding: 1rem 1.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &::before {
+      content: '⏱️';
+      font-size: 1.2rem;
+    }
+  }
+}
+
+.questionItem {
+  border: none;
+  border-left: 4px solid $primary-color;
+  transition: $transition-base;
+  padding: 1.25rem !important;
+
+  &:hover {
+    background-color: rgba($primary-color, 0.05);
+    border-left-color: $secondary-color;
+  }
+
+  p {
+    margin-bottom: 0.75rem;
+    color: $dark-color;
+    font-size: 1.05rem;
+    line-height: 1.6;
+
+    strong {
+      font-weight: $font-weight-semibold;
+      color: $dark-color;
+    }
+  }
+
+  .correctAnswer {
+    display: inline-block;
+    background: rgba($success-color, 0.1);
+    color: $success-color;
+    padding: 0.25rem 0.75rem;
+    border-radius: $border-radius-sm;
+    font-weight: $font-weight-semibold;
+    font-size: 0.95rem;
+  }
+}
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  flex-direction: column;
+  gap: 1rem;
+
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-width: 0.3rem;
+    color: $primary-color;
+  }
+
+  p {
+    color: $text-secondary;
+    font-weight: $font-weight-semibold;
+    margin-top: 1rem;
+  }
+}
+
+.errorAlert {
+  border: none;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-md;
+  animation: shake $animation-duration-medium $animation-easing-bounce;
+}
+
+.warningAlert {
+  border: none;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-sm;
+}
+
+// Keyframe animations
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .quizContainer {
+    padding: 2rem 1rem;
+
+    h1 {
+      font-size: 2rem;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+    }
+  }
+}

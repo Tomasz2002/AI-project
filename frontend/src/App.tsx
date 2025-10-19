@@ -6,15 +6,16 @@ import Layout from "./layout/Layout";
 import Header from './layout/Header/Header';
 import Footer from './layout/Footer/Footer';
 import MainPage from './pages/MainPage/MainPage';
-import FormPage from './pages/FormPage/FormPage'; 
+import FormPage from './pages/FormPage/FormPage';
+import QuizPlayerPage from './pages/QuizPlayerPage/QuizPlayerPage';
 import NotFound from './pages/NotFound/NotFound';
-
 
 function App() {
   const content = (
     <Routes>
       <Route path="/" element={<MainPage />} />
       <Route path="/create-quiz" element={<FormPage />} />
+      <Route path="/quiz/:quizId" element={<QuizPlayerPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
@@ -24,7 +25,7 @@ function App() {
       <Route path="*" element={<Header />} />
     </Routes>
   )
-  
+ 
   const footer = (
     <Routes>
        <Route path="*" element={<Footer />} />
