@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import styles from './FormPage.module.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { uploadMaterials, generateQuiz } from '../../services/quizApi'; 
+// --- NOWY IMPORT ---
+import { PDFDocument } from 'pdf-lib';
 
 interface FormErrors {
   youtubeUrl?: string;
@@ -26,20 +28,50 @@ const FormPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSuccess, setIsSuccess] = useState(false);
-
-  // Stan do przechowywania ID sesji zwróconego przez backend
   const [sessionId, setSessionId] = useState<string | null>(null);
 
+  // --- NOWY STAN ---
+  const [maxPages, setMaxPages] = useState<number | null>(null);
 
-  // --- Funkcje pomocnicze ---
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      setFile(e.target.files[0]);
+  // --- ZMODYFIKOWANA FUNKCJA ---
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+
+    if (!selectedFile) {
+      setFile(null);
+      setMaxPages(null);
+      return;
+    }
+
+    setFile(selectedFile);
+    // Wyczyść błąd pliku, jeśli istniał
+    setErrors(prev => ({ ...prev, file: undefined, pageRange: undefined }));
+
+    // Jeśli plik to PDF, policz strony
+    if (selectedFile.type === 'application/pdf') {
+      try {
+        const arrayBuffer = await selectedFile.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(arrayBuffer);
+        const totalPages = pdfDoc.getPageCount();
+        
+        setMaxPages(totalPages);
+        setPageTo(totalPages); // Automatycznie ustaw 'Do' na maksymalną liczbę
+        setPageFrom(1);       // Zresetuj 'Od' do 1
+        
+      } catch (error) {
+        console.error("Błąd podczas wczytywania PDF:", error);
+        setMaxPages(null);
+        setErrors(prev => ({ ...prev, file: 'Nie udało się przetworzyć pliku PDF.' }));
+      }
+    } else {
+      // Jeśli to DOCX lub inny plik, nie możemy policzyć stron
+      setMaxPages(null);
     }
   };
 
   // --- Logika walidacji ---
   const validateStep1 = (): boolean => {
+    // ... (bez zmian)
     const newErrors: FormErrors = {};
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
 
@@ -53,10 +85,16 @@ const FormPage: React.FC = () => {
       newErrors.file = 'Musisz dodać plik z notatkami.';
     }
 
+    // Sprawdź, czy nie ma błędu wczytywania PDF
+    if (errors.file) {
+        newErrors.file = errors.file;
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // --- ZMODYFIKOWANA WALIDACJA ---
   const validateStep2 = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -64,6 +102,9 @@ const FormPage: React.FC = () => {
       newErrors.pageRange = 'Numery stron muszą być dodatnie.';
     } else if (pageTo < pageFrom) {
       newErrors.pageRange = 'Strona "do" nie może być mniejsza niż strona "od".';
+    } else if (maxPages && pageTo > maxPages) {
+      // --- NOWA REGUŁA ---
+      newErrors.pageRange = `Dokument ma tylko ${maxPages} stron. Zmień zakres.`;
     }
 
     if (questionsToUnlock < 1) {
@@ -77,16 +118,18 @@ const FormPage: React.FC = () => {
 
   // --- Obsługa formularza ---
   const handleNextStep = async () => {
-    if (!validateStep1() || !file) return;
+    // Walidacja w handleNextStep musi też sprawdzać błędy pliku (np. błąd parsowania)
+    if (!validateStep1() || !file || errors.file) return;
 
     setIsLoading(true);
-    setErrors({});
+    setErrors({}); // Czyścimy błędy przed próbą wysłania
 
     try {
       const data = await uploadMaterials(youtubeUrl, file);
       setSessionId(data.sessionId);
       setCurrentStep(2);
     } catch (error: any) {
+      // Błędy serwera (np. 400, 500)
       setErrors({ file: error.message || 'Wystąpił nieoczekiwany błąd serwera.' });
     } finally {
       setIsLoading(false);
@@ -106,13 +149,14 @@ const FormPage: React.FC = () => {
       setIsSuccess(true);
       
       setTimeout(() => {
-        // Po sukcesie, przekieruj użytkownika na stronę z quizem
         navigate(`/quiz/${result.quizId}`); 
       }, 1500);
 
     } catch (error: any) {
+      // Backend mógł rzucić błąd BadRequestException (np. gdy DOCX zawiódł)
+      // Mimo walidacji frontendu, backend też ma swoją (i to jest dobre).
       setErrors({ pageRange: error.message || 'Wystąpił nieoczekiwany błąd podczas generowania quizu.' });
-      setIsLoading(false); // Zatrzymaj ładowanie w przypadku błędu
+      setIsLoading(false); 
     }
   };
 
@@ -128,7 +172,7 @@ const FormPage: React.FC = () => {
             </p>
 
             <form onSubmit={handleSubmit} noValidate>
-              {/* Krok 1: Materiały do nauki */}
+              {/* Krok 1: Materiały do nauki (bez zmian w JSX) */}
               {currentStep === 1 && (
                 <div className={styles.stepContainer}>
                   <div className={`card ${styles.formCard}`}>
@@ -163,6 +207,7 @@ const FormPage: React.FC = () => {
                           accept=".pdf,.docx"
                           required
                         />
+                        {/* Ten błąd wyświetli teraz błędy walidacji ORAZ błędy parsowania PDF */}
                         {errors.file && <div className="invalid-feedback">{errors.file}</div>}
                       </div>
                     </div>
@@ -185,7 +230,7 @@ const FormPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Krok 2: Ustawienia Quizu */}
+              {/* Krok 2: Ustawienia Quizu --- ZMIANY W JSX --- */}
               {currentStep === 2 && (
                 <div className={styles.stepContainer}>
                   <div className={`card ${styles.formCard}`}>
@@ -195,6 +240,8 @@ const FormPage: React.FC = () => {
                       <div className="row mb-3">
                         <label className={`form-label ${styles.formLabel}`}>
                           Zakres stron z dokumentu do analizy
+                          {/* --- NOWY TEKST --- */}
+                          {maxPages && <span className="text-muted fw-normal ms-2">(Dokument ma {maxPages} stron)</span>}
                         </label>
                         <div className="col-md-6">
                           <label htmlFor="pageFrom" className="form-label small text-muted">Od strony</label>
@@ -205,6 +252,8 @@ const FormPage: React.FC = () => {
                             value={pageFrom}
                             onChange={(e) => setPageFrom(Number(e.target.value))}
                             min="1"
+                            // --- NOWY ATRYBUT ---
+                            max={maxPages || undefined}
                           />
                         </div>
                         <div className="col-md-6 mt-3 mt-md-0">
@@ -216,11 +265,14 @@ const FormPage: React.FC = () => {
                             value={pageTo}
                             onChange={(e) => setPageTo(Number(e.target.value))}
                             min="1"
+                            // --- NOWY ATRYBUT ---
+                            max={maxPages || undefined}
                           />
                         </div>
                         {errors.pageRange && <div className="invalid-feedback d-block mt-2">{errors.pageRange}</div>}
                       </div>
 
+                      {/* Reszta formularza (quizCount, questionsToUnlock) bez zmian */}
                       <div className="mb-3">
                         <label htmlFor="quizCount" className={`form-label ${styles.formLabel}`}>
                           Liczba pytań w quizie
@@ -255,6 +307,7 @@ const FormPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Przyciski (bez zmian) */}
                   <div className="d-flex gap-3 mt-4">
                     <button
                       type="button"

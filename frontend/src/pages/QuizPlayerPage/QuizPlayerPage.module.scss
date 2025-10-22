@@ -25,6 +25,254 @@
   }
 }
 
+.playerAndQuizWrapper {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.videoWrapper {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  height: 0;
+  overflow: hidden;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-md;
+
+  .youtubePlayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+// Modal Overlay - blokuje całą stronę
+.quizOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba($black, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn $animation-duration-fast ease-out;
+  overflow-y: auto;
+}
+
+.quizCard {
+  border: none;
+  border-radius: $border-radius-lg;
+  box-shadow: 0 20px 60px rgba($black, 0.4);
+  max-width: 700px;
+  width: 100%;
+  margin: auto;
+  overflow: hidden;
+  animation: scaleIn $animation-duration-medium $animation-easing-bounce;
+  background: $white;
+
+  .card-header {
+    background: $primary-gradient;
+    color: $white;
+    font-weight: $font-weight-semibold;
+    padding: 1.5rem;
+    border: none;
+    text-align: center;
+
+    h3 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.5rem;
+      font-weight: $font-weight-bold;
+    }
+
+    p {
+      margin: 0;
+      font-size: 1rem;
+      opacity: 0.95;
+    }
+  }
+
+  .card-body {
+    padding: 2rem;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+}
+
+.questionBlock {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: rgba($primary-color, 0.03);
+  border-radius: $border-radius-md;
+  transition: $transition-base;
+
+  &:hover {
+    background: rgba($primary-color, 0.06);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin-bottom: 1rem;
+    color: $dark-color;
+    font-size: 1.1rem;
+    line-height: 1.6;
+
+    strong {
+      font-weight: $font-weight-bold;
+      color: $dark-color;
+    }
+  }
+}
+
+.optionsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  button {
+    padding: 0.875rem 1.25rem;
+    border: 2px solid $primary-color;
+    border-radius: $border-radius-md;
+    font-weight: $font-weight-semibold;
+    font-size: 1rem;
+    transition: $transition-base;
+    text-align: left;
+    background: $white;
+    color: $primary-color;
+
+    &:hover:not(:disabled) {
+      background: $primary-gradient;
+      color: $white;
+      transform: translateX(4px);
+      border-color: transparent;
+    }
+
+    &:active:not(:disabled) {
+      transform: translateX(4px) scale(0.98);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.progressTracker {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid rgba($primary-color, 0.2);
+  text-align: center;
+
+  p {
+    font-size: 1.2rem;
+    font-weight: $font-weight-bold;
+    color: $primary-color;
+    margin-bottom: 0.5rem;
+  }
+
+  .alert {
+    margin-top: 1rem;
+    border: none;
+    border-radius: $border-radius-md;
+    animation: bounceIn $animation-duration-medium $animation-easing-bounce;
+  }
+}
+
+.feedbackMessage {
+  animation: slideInUp $animation-duration-fast ease-out;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.5rem;
+
+  .alert {
+    border: none;
+    border-radius: $border-radius-md;
+    font-weight: $font-weight-semibold;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+    pointer-events: auto;
+
+    &.visible {
+      opacity: 1;
+    }
+  }
+}
+
+.quizTimeline {
+  font-size: 1.1rem;
+  color: $dark-color;
+  margin-bottom: 1.5rem;
+  font-weight: $font-weight-semibold;
+}
+
+.timestampList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.timestampItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba($primary-color, 0.05);
+  border-radius: $border-radius-md;
+  transition: $transition-base;
+
+  &:hover {
+    background: rgba($primary-color, 0.1);
+    transform: translateX(4px);
+  }
+}
+
+.timestampBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: $primary-gradient;
+  color: $white;
+  padding: 0.5rem 1rem;
+  border-radius: $border-radius-md;
+  font-weight: $font-weight-bold;
+  font-size: 1rem;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.timestampText {
+  color: $dark-color;
+  font-weight: $font-weight-semibold;
+  font-size: 1rem;
+}
+
+.unlockInfo {
+  padding: 1rem;
+  background: rgba($success-color, 0.1);
+  border-radius: $border-radius-md;
+  margin-bottom: 0;
+  font-size: 1rem;
+  color: $dark-color;
+
+  strong {
+    color: $success-color;
+  }
+}
+
 .infoCard {
   border: none;
   border-radius: $border-radius-lg;
@@ -73,54 +321,13 @@
   }
 }
 
-.quizCard {
-  border: none;
-  border-radius: $border-radius-lg;
-  box-shadow: $box-shadow-sm;
-  transition: $transition-smooth;
-  margin-bottom: 1.5rem;
-  overflow: hidden;
-  animation: fadeInUp $animation-duration-medium $animation-easing-smooth;
-  animation-fill-mode: both;
-
-  // Stagger animation dla kolejnych kart
-  @for $i from 1 through 10 {
-    &:nth-child(#{$i}) {
-      animation-delay: #{$i * 0.1}s;
-    }
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $box-shadow-hover;
-  }
-
-  .card-header {
-    background: $success-gradient;
-    color: $white;
-    font-weight: $font-weight-semibold;
-    padding: 1rem 1.5rem;
-    border: none;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    &::before {
-      content: '⏱️';
-      font-size: 1.2rem;
-    }
-  }
-}
-
 .questionItem {
   border: none;
-  border-left: 4px solid $primary-color;
   transition: $transition-base;
   padding: 1.25rem !important;
 
   &:hover {
     background-color: rgba($primary-color, 0.05);
-    border-left-color: $secondary-color;
   }
 
   p {
@@ -182,6 +389,54 @@
 }
 
 // Keyframe animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @keyframes fadeInDown {
   from {
     opacity: 0;
@@ -221,6 +476,73 @@
 
     h2 {
       font-size: 1.5rem;
+    }
+  }
+
+  .quizCard {
+    .card-body {
+      padding: 1.5rem;
+      max-height: 70vh;
+    }
+  }
+
+  .questionBlock {
+    padding: 1rem;
+
+    p {
+      font-size: 1rem;
+    }
+  }
+
+  .optionsContainer button {
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+  }
+}
+.clickableFeedback {
+  cursor: pointer;
+  
+  &:hover {
+    // Możesz dodać subtelne przyciemnienie, aby pokazać, że jest interaktywny
+    filter: brightness(0.95);
+  }
+}
+// Dodatkowe style dla karty quizu na dole strony
+.card {
+  border: none;
+  border-radius: $border-radius-lg;
+  box-shadow: $box-shadow-sm;
+  transition: $transition-smooth;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  animation: fadeInUp $animation-duration-medium $animation-easing-smooth;
+  animation-fill-mode: both;
+
+  // Stagger animation dla kolejnych kart
+  @for $i from 1 through 10 {
+    &:nth-child(#{$i}) {
+      animation-delay: #{$i * 0.1}s;
+    }
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $box-shadow-hover;
+  }
+
+  .card-header {
+    background: $success-gradient;
+    color: $white;
+    font-weight: $font-weight-semibold;
+    padding: 1rem 1.5rem;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    &::before {
+      content: '⏱️';
+      font-size: 1.2rem;
     }
   }
 }
