@@ -1,0 +1,36 @@
+.sessionCard {
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  border: none;
+  border-radius: 12px;
+  overflow: hidden;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    
+    .playOverlay {
+      opacity: 1;
+    }
+  }
+}
+
+.thumbnailWrapper {
+  position: relative;
+  background-color: #000;
+
+  img {
+    opacity: 0.85;
+  }
+}
+
+.playOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 3rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}

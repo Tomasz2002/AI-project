@@ -29,13 +29,20 @@ const Header: React.FC = () => {
         </button>
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto align-items-lg-center">
-            <li className={`nav-item ${styles.navItem}`}>
-              <a className={`nav-link ${styles.navLink}`} href="#features">Funkcje</a>
-            </li>
             {token ? (
               <>
                 <li className={`nav-item ${styles.navItem}`}>
-                  <span className={`nav-link ${styles.navLink}`}>Witaj, {user.name}</span>
+                  <Link className={`nav-link ${styles.navLink}`} to="/sessions">
+                    Moje sesje
+                  </Link>
+                </li>
+                <li className={`nav-item ${styles.navItem}`}>
+                  <Link className={`nav-link ${styles.navLink}`} to="/create-quiz">
+                    Nowy quiz
+                  </Link>
+                </li>
+                <li className={`nav-item ${styles.navItem} ms-lg-3`}>
+                  <span className="badge bg-light text-dark p-2">Witaj, {user.name}</span>
                 </li>
                 <li className="nav-item ms-lg-2">
                    <button onClick={handleLogout} className="btn btn-outline-danger btn-sm">
@@ -50,7 +57,7 @@ const Header: React.FC = () => {
                      Zaloguj się
                    </Link>
                 </li>
-                <li className="nav-item ms-lg-2">
+                <li className="nav-item ms-lg-2 mt-2 mt-lg-0">
                    <Link to="/register" className={styles.ctaButton} style={{ textDecoration: 'none' }}>
                      Wypróbuj za darmo
                    </Link>
