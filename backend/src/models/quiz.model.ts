@@ -1,9 +1,10 @@
 import { Schema, model, Document } from 'mongoose';
 
 export interface IQuiz extends Document {
+  userId: string;
   youtubeUrl: string;
   youtubeVideoId: string;
-  youtubeVideoDurationSeconds: number; // Czas trwania w sekundach
+  youtubeVideoDurationSeconds: number; 
   documentFileName: string;
   documentFilePath: string; 
   pageFrom: number;
@@ -11,8 +12,8 @@ export interface IQuiz extends Document {
   quizQuestionCount: number; 
   questionsToUnlock: number; 
   generatedQuizzes: Array<{
-    timestamp: number; // np. 272
-    timestampFormatted: string; // <-- NOWE POLE (np. "4:32")
+    timestamp: number; 
+    timestampFormatted: string; 
     questions: Array<{
       questionText: string;
       options: string[];
@@ -21,9 +22,12 @@ export interface IQuiz extends Document {
   }>;
   createdAt: Date;
   updatedAt: Date;
+  completedQuestions: string[];
 }
 
 export const QuizSchema: Schema = new Schema({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  completedQuestions: [{ type: String }],
   youtubeUrl: { type: String, required: true },
   youtubeVideoId: { type: String, required: true },
   youtubeVideoDurationSeconds: { type: Number, required: true },
