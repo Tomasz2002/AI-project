@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getMyQuizzes } from '../../services/quizApi';
+import { getMyQuizzes, deleteQuiz } from '../../services/quizApi';
 import styles from './SessionPage.module.scss';
 
 interface IQuizSummary {
@@ -28,6 +28,21 @@ const SessionsPage: React.FC = () => {
     loadQuizzes();
   }, []);
 
+  /**
+   * Obsługa usuwania sesji
+   */
+  const handleDelete = async (quizId: string) => {
+    if (!window.confirm('Czy na pewno chcesz trwale usunąć tę sesję?')) return;
+
+    try {
+      await deleteQuiz(quizId);
+      // Filtrowanie usuniętej sesji ze stanu, aby zniknęła z widoku
+      setQuizzes(prev => prev.filter(q => q._id !== quizId));
+    } catch (err) {
+      alert('Nie udało się usunąć sesji. Spróbuj ponownie.');
+    }
+  };
+
   if (loading) return (
     <div className="container mt-5 text-center">
       <div className="spinner-border text-primary" role="status"></div>
@@ -38,7 +53,7 @@ const SessionsPage: React.FC = () => {
   return (
     <div className="container mt-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Twoje Sesje Nauki</h2>
+        <h2 className={styles.pageTitle}>Twoje Sesje Nauki</h2>
         <Link to="/create-quiz" className="btn btn-success">Nowa Sesja</Link>
       </div>
       
@@ -59,15 +74,13 @@ const SessionsPage: React.FC = () => {
                     className="card-img-top" 
                     alt="YouTube Thumbnail" 
                   />
-                  <div className={styles.playOverlay}>▶</div>
                 </div>
                 <div className="card-body d-flex flex-column">
                   <h5 className="card-title text-truncate" title={quiz.documentFileName}>
                     {quiz.documentFileName.split('.')[0]}
                   </h5>
-                  <p className="card-text text-muted small mt-auto">
-                    {/* ZMIANA: Dodano toLocaleString() dla wyświetlenia daty i godziny */}
-                    📅 Utworzono: {new Date(quiz.createdAt).toLocaleString('pl-PL', {
+                  <p className="card-text text-muted small mb-3">
+                    📅 {new Date(quiz.createdAt).toLocaleString('pl-PL', {
                       day: '2-digit',
                       month: '2-digit',
                       year: 'numeric',
@@ -75,9 +88,18 @@ const SessionsPage: React.FC = () => {
                       minute: '2-digit'
                     })}
                   </p>
-                  <Link to={`/quiz/${quiz._id}`} className="btn btn-outline-primary w-100 mt-2">
-                    Kontynuuj naukę
-                  </Link>
+                  
+                  <div className="mt-auto">
+                    <Link to={`/quiz/${quiz._id}`} className="btn btn-primary w-100 mb-2">
+                      Kontynuuj naukę
+                    </Link>
+                    <button 
+                      onClick={() => handleDelete(quiz._id)} 
+                      className="btn btn-outline-danger w-100"
+                    >
+                      Usuń sesję
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
