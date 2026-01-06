@@ -43,7 +43,7 @@ export const uploadMaterials = async (youtubeUrl: string, file: File): Promise<{
 
   const response = await fetch(`${API_BASE_URL}/materials`, {
     method: 'POST',
-    headers: getHeaders(true), // Przekazujemy true, aby nie nadpisywać boundary FormData
+    headers: getHeaders(true),
     body: formData,
   });
 
