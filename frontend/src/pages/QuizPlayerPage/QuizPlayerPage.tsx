@@ -84,8 +84,6 @@ const QuizPlayerPage: React.FC = () => {
 
         data.youtubeVideoId = videoId;
         setQuizData(data);
-        
-        // Tutaj można by wczytać zapisany postęp z data.completedQuestions
       } catch (err: any) {
         console.error("Błąd pobierania danych:", err);
         setError(err.message || 'Wystąpił nieoczekiwany błąd.');
@@ -133,9 +131,7 @@ const QuizPlayerPage: React.FC = () => {
     setAnsweredQuestionsCount(prev => prev + 1);
 
     if (isCorrect) {
-      // Jeśli odpowiedź jest poprawna, aktualizujemy postęp na serwerze
       try {
-        // Logika lokalnego zapisu ID pytania (zakładając, że pytania mają _id)
         const progressId = question._id || `q_${currentQuestionIndex}`;
         await updateQuizProgress(quizId, [progressId]);
       } catch (err) {
@@ -259,6 +255,32 @@ const QuizPlayerPage: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Nowa sekcja: Oś czasu quizów */}
+      <div className={`card ${styles.infoCard} mt-4`}>
+        <div className="card-header">⏱️ Oś czasu quizów</div>
+        <div className="card-body">
+          <div className={styles.timestampList}>
+            {quizData.generatedQuizzes.map((quiz, index) => {
+              const isShown = index <= lastShownQuizIndex;
+              return (
+                <div key={index} className={styles.timestampItem}>
+                  <span className={styles.timestampBadge}>
+                    {quiz.timestampFormatted}
+                  </span>
+                  <span className={styles.timestampText}>
+                    {isShown ? (
+                      <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Wyświetlony</span>
+                    ) : (
+                      <span style={{ color: '#6c757d' }}>⏳ Oczekuje na czas: {quiz.timestampFormatted}</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
       
       {/* Sekcja informacji o sesji */}

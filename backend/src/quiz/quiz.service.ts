@@ -19,12 +19,17 @@ const pdfParse = require('pdf-parse');
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+// Import Google Generative AI
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 // Magazyn w pamięci dla tymczasowych sesji przesyłania plików
 const sessionStore = new Map<string, { file: Express.Multer.File, youtubeUrl: string }>();
 
 @Injectable()
 export class QuizService {
   private readonly YOUTUBE_API_KEY: string;
+  private readonly GEMINI_API_KEY: string;
+  private genAI: GoogleGenerativeAI;
 
   constructor(
     @InjectModel(Quiz.name) private quizModel: Model<IQuiz>,
@@ -32,101 +37,110 @@ export class QuizService {
     private readonly configService: ConfigService,
   ) {
     this.YOUTUBE_API_KEY = this.configService.get<string>('YOUTUBE_API_KEY');
+    this.GEMINI_API_KEY = this.configService.get<string>('GEMINI_API_KEY');
+
     if (!this.YOUTUBE_API_KEY) {
       console.error('BŁĄD KRYTYCZNY: Brak klucza YOUTUBE_API_KEY w .env');
     }
+    
+    if (!this.GEMINI_API_KEY) {
+      console.error('BŁĄD KRYTYCZNY: Brak klucza GEMINI_API_KEY w .env');
+    } else {
+      // Inicjalizacja Gemini
+      this.genAI = new GoogleGenerativeAI(this.GEMINI_API_KEY);
+      console.log('✅ Gemini SDK zainicjalizowane.');
+      this.listAvailableModels();
+    }
   }
 
   /**
-   * Znajduje konkretny quiz po ID.
+   * Diagnostyka: Wyświetla listę modeli (v1) w konsoli przy starcie.
    */
-  async findById(id: string): Promise<IQuiz | null> {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Nieprawidłowy format ID.');
+  private async listAvailableModels() {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1/models?key=${this.GEMINI_API_KEY}`;
+      const response = await firstValueFrom(this.httpService.get(url));
+      console.log('--- DOSTĘPNE MODELE DLA TWOJEGO KLUCZA ---');
+      if (response.data && response.data.models) {
+        response.data.models.forEach((m: any) => console.log(`- ${m.name}`));
+      }
+      console.log('------------------------------------------');
+    } catch (err: any) {
+      console.warn('⚠️ Diagnostyka: Nie udało się pobrać listy modeli.');
     }
+  }
+
+  async findById(id: string): Promise<IQuiz | null> {
+    if (!isValidObjectId(id)) throw new BadRequestException('Nieprawidłowy format ID.');
     return this.quizModel.findById(id).exec();
   }
 
-  /**
-   * Pobiera wszystkie quizy należące do danego użytkownika.
-   */
   async findAllByUser(userId: string): Promise<IQuiz[]> {
     return this.quizModel.find({ userId }).sort({ createdAt: -1 }).exec();
   }
 
-  /**
-   * Obsługuje pierwszy krok formularza - zapisuje plik i URL w tymczasowej sesji.
-   */
   async handleFileUpload(file: Express.Multer.File, youtubeUrl: string): Promise<string> {
     const sessionId = uuidv4();
     sessionStore.set(sessionId, { file, youtubeUrl });
     return sessionId;
   }
 
-  /**
-   * Krok 2: Generuje quiz, wyodrębnia tekst z PDF, pobiera czas filmu i zapisuje w bazie.
-   */
   async createQuiz(generateQuizDto: GenerateQuizDto, userId: string): Promise<IQuiz> {
     const { sessionId, pageFrom, pageTo, quizCount, questionsToUnlock } = generateQuizDto;
 
     const sessionData = sessionStore.get(sessionId);
-    if (!sessionData) {
-      throw new NotFoundException('Nie znaleziono sesji. Prześlij materiały ponownie.');
-    }
+    if (!sessionData) throw new NotFoundException('Nie znaleziono sesji.');
 
     const fileBuffer = sessionData.file.buffer;
-    if (!fileBuffer) {
-      sessionStore.delete(sessionId);
-      throw new BadRequestException('Błąd odczytu pliku.');
-    }
+    if (!fileBuffer) throw new BadRequestException('Błąd odczytu pliku.');
 
-    // Wyodrębnianie tekstu z PDF (tylko wskazane strony)
+    // 1. Wyodrębnianie tekstu z PDF
     let extractedText = ''; 
     if (sessionData.file.mimetype === 'application/pdf') {
       extractedText = await this.extractTextFromPdfPages(fileBuffer, pageFrom, pageTo);
     } else {
-      sessionStore.delete(sessionId);
       throw new BadRequestException('Obsługiwane są tylko pliki PDF.');
     }
 
-    // Zapisywanie pliku na dysku serwera
+    // 2. Generowanie pytań przez AI (Zaktualizowane modele)
+    let aiQuestions = [];
+    try {
+      console.log(`--- Generowanie ${quizCount} pytań przez AI (Gemini 2.0) ---`);
+      aiQuestions = await this._generateQuestionsWithGemini(extractedText, quizCount);
+      console.log(`✅ AI pomyślnie wygenerowało pytania.`);
+    } catch (error: any) {
+      console.error('❌ BŁĄD KRYTYCZNY AI:', error.message);
+      // Fallback
+      aiQuestions = Array.from({ length: quizCount }, (_, i) => ({
+        questionText: `[Błąd AI] Pytanie zapasowe ${i + 1}`,
+        options: ['A', 'B', 'Poprawna', 'D'],
+        correctAnswer: 'Poprawna',
+      }));
+    }
+
+    // 3. Zapis pliku
     const newFileName = `${uuidv4()}-${sessionData.file.originalname}`;
     const permanentPath = path.join(__dirname, '..', '..', '..', 'uploads', 'documents', newFileName);
+    await fs.mkdir(path.dirname(permanentPath), { recursive: true });
+    await fs.writeFile(permanentPath, fileBuffer);
 
-    try {
-      await fs.mkdir(path.dirname(permanentPath), { recursive: true });
-      await fs.writeFile(permanentPath, fileBuffer); 
-    } catch (error) {
-      sessionStore.delete(sessionId);
-      throw new BadRequestException('Nie udało się zapisać pliku na serwerze.');
-    }
-
-    // Pobieranie danych z YouTube API
+    // 4. YouTube
     const videoId = this.extractVideoId(sessionData.youtubeUrl);
-    let videoDurationInSeconds: number;
-    try {
-      videoDurationInSeconds = await this._getYoutubeVideoDuration(videoId);
-    } catch (error) {
-      sessionStore.delete(sessionId); 
-      throw new BadRequestException(`Błąd YouTube: ${error.message}`);
-    }
+    const videoDuration = await this._getYoutubeVideoDuration(videoId);
 
-    // Generowanie placeholderów pytań
-    const dynamicQuizzes = this._generateDynamicQuizzes(quizCount, videoDurationInSeconds);
-
+    // 5. Zapis w DB
     const newQuiz = new this.quizModel({
-      userId, // Powiązanie z zalogowanym użytkownikiem
+      userId,
       youtubeUrl: sessionData.youtubeUrl,
       youtubeVideoId: videoId,
-      youtubeVideoDurationSeconds: videoDurationInSeconds, 
+      youtubeVideoDurationSeconds: videoDuration, 
       documentFileName: sessionData.file.originalname,
       documentFilePath: permanentPath, 
-      pageFrom,
-      pageTo,
+      pageFrom, pageTo,
       quizQuestionCount: quizCount,
       questionsToUnlock,
-      generatedQuizzes: dynamicQuizzes,
-      completedQuestions: [], // Inicjalizacja pustego postępu
+      generatedQuizzes: this._distributeQuestionsOnTimeline(aiQuestions, videoDuration),
+      completedQuestions: [],
     });
 
     sessionStore.delete(sessionId);
@@ -134,121 +148,116 @@ export class QuizService {
   }
 
   /**
-   * Aktualizuje postęp użytkownika (rozwiązane pytania).
+   * Zaktualizowana metoda: Używa modeli gemini-2.0-flash i gemini-2.0-flash-lite
    */
-  async updateProgress(quizId: string, completedQuestionIds: string[]): Promise<IQuiz> {
-    const quiz = await this.quizModel.findById(quizId);
-    if (!quiz) throw new NotFoundException('Quiz nie istnieje.');
+  private async _generateQuestionsWithGemini(text: string, count: number): Promise<any[]> {
+    const prompt = `
+      Na podstawie poniższych notatek przygotuj dokładnie ${count} pytań testowych wielokrotnego wyboru.
+      Każde pytanie musi mieć dokładnie 4 opcje i tylko jedną poprawną.
+      Wynik zwróć wyłącznie jako tablicę JSON.
 
-    // Łączenie postępu bez duplikatów
-    const updatedProgress = Array.from(new Set([...quiz.completedQuestions, ...completedQuestionIds]));
-    quiz.completedQuestions = updatedProgress;
-    
-    return quiz.save();
-  }
+      FORMAT:
+      [{"questionText": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "..."}]
 
-  // --- Metody Pomocnicze (Analiza PDF, YouTube, Quizy) ---
+      NOTATKI:
+      ${text.substring(0, 20000)}
+    `;
 
-  private async extractTextFromPdfPages(fileBuffer: Buffer, from: number, to: number): Promise<string> {
-    try {
-      const pdfDoc = await PDFDocument.load(fileBuffer);
-      const totalPages = pdfDoc.getPageCount();
-      
-      if (from < 1 || to > totalPages || from > to) {
-        throw new BadRequestException(`Nieprawidłowy zakres stron (1-${totalPages}).`);
+    // Modele pobrane z Twojej diagnostyki
+    const modelOptions = [
+      'gemini-2.0-flash', 
+      'gemini-2.0-flash-lite',
+      'gemini-2.5-flash'
+    ];
+
+    let lastError: any;
+
+    for (const modelName of modelOptions) {
+      try {
+        console.log(`Próba z modelem: ${modelName}...`);
+        
+        // Próbujemy najpierw przez stabilny endpoint v1 (bezpośrednio axios) dla pewności
+        const url = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${this.GEMINI_API_KEY}`;
+        const payload = {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        };
+
+        const response = await firstValueFrom(this.httpService.post(url, payload));
+        const jsonText = response.data.candidates[0].content.parts[0].text;
+        return JSON.parse(jsonText);
+        
+      } catch (err: any) {
+        console.warn(`❌ Model ${modelName} nie odpowiedział poprawnie: ${err.message}`);
+        
+        // Próba przez SDK jako fallback dla danej nazwy modelu
+        try {
+          const sdkModel = this.genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType: 'application/json' } });
+          const result = await sdkModel.generateContent(prompt);
+          return JSON.parse(result.response.text());
+        } catch (sdkErr) {
+          lastError = sdkErr;
+        }
       }
-
-      const newDoc = await PDFDocument.create();
-      for (let i = from - 1; i < to; i++) {
-        const [copiedPage] = await newDoc.copyPages(pdfDoc, [i]);
-        newDoc.addPage(copiedPage);
-      }
-      
-      const newPdfBytes = await newDoc.save();
-      const data = await pdfParse(newPdfBytes);
-      return data.text; 
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error; 
-      throw new BadRequestException('Błąd przetwarzania PDF.');
     }
+
+    throw lastError;
   }
 
-private async _getYoutubeVideoDuration(videoId: string): Promise<number> {
-  const url = 'https://www.googleapis.com/youtube/v3/videos';
-  const params = { 
-    part: 'contentDetails', 
-    id: videoId, 
-    key: this.YOUTUBE_API_KEY 
-  };
-
-  try {
-    const response = await firstValueFrom(this.httpService.get(url, { params }));
-    const data = response.data;
-    
-    if (!data.items || data.items.length === 0) {
-      throw new NotFoundException(`Nie znaleziono filmu o ID: ${videoId}`);
-    }
-    
-    return this._parseISO8601Duration(data.items[0].contentDetails.duration);
-  } catch (error) {
-    // Wypisuje szczegóły błędu w terminalu backendu:
-    console.error('❌ SZCZEGÓŁY BŁĘDU YOUTUBE API:', error.response?.data || error.message);
-    
-    // Zwraca bardziej szczegółowy opis do frontendu:
-    const detail = error.response?.data?.error?.message || 'Błąd połączenia z API Google';
-    throw new BadRequestException(`Błąd YouTube API: ${detail}`);
-  }
-}
-
-  private _parseISO8601Duration(durationString: string): number {
-    const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
-    const matches = durationString.match(regex);
-    if (!matches) return 0;
-    const hours = parseInt(matches[1] || '0', 10);
-    const minutes = parseInt(matches[2] || '0', 10);
-    const seconds = parseInt(matches[3] || '0', 10);
-    return (hours * 3600) + (minutes * 60) + seconds;
-  }
-
-  private _formatSecondsToMMSS(totalSeconds: number): string {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }
-
-  private _generateDynamicQuizzes(totalQuestions: number, videoDurationSeconds: number): any[] {
+  private _distributeQuestionsOnTimeline(allQuestions: any[], videoDuration: number): any[] {
     const quizzes = [];
-    const maxQuestionsPerGroup = 5;
-    const numGroups = Math.ceil(totalQuestions / maxQuestionsPerGroup);
-    const interval = videoDurationSeconds / (numGroups + 1);
-    
-    let questionCounter = 1;
-    for (let i = 1; i <= numGroups; i++) {
-      if (questionCounter > totalQuestions) break;
-      const timestamp = Math.floor(interval * i);
-      const questionsInGroup = Math.min(maxQuestionsPerGroup, totalQuestions - questionCounter + 1);
-      
-      const questions = [];
-      for (let j = 0; j < questionsInGroup; j++) {
-        questions.push({
-          questionText: `[PLACEHOLDER] Pytanie ${questionCounter}`,
-          options: ['A', 'B', 'Poprawna', 'D'],
-          correctAnswer: 'Poprawna',
-        });
-        questionCounter++;
-      }
+    const maxPerGroup = 5;
+    const numGroups = Math.ceil(allQuestions.length / maxPerGroup);
+    const interval = videoDuration / (numGroups + 1);
 
+    for (let i = 0; i < numGroups; i++) {
+      const timestamp = Math.floor(interval * (i + 1));
       quizzes.push({
         timestamp,
         timestampFormatted: this._formatSecondsToMMSS(timestamp),
-        questions,
+        questions: allQuestions.slice(i * maxPerGroup, (i + 1) * maxPerGroup),
       });
     }
     return quizzes;
   }
 
+  private async extractTextFromPdfPages(fileBuffer: Buffer, from: number, to: number): Promise<string> {
+    const pdfDoc = await PDFDocument.load(fileBuffer);
+    const newDoc = await PDFDocument.create();
+    for (let i = from - 1; i < Math.min(to, pdfDoc.getPageCount()); i++) {
+      const [page] = await newDoc.copyPages(pdfDoc, [i]);
+      newDoc.addPage(page);
+    }
+    const data = await pdfParse(Buffer.from(await newDoc.save()));
+    return data.text;
+  }
+
+  private async _getYoutubeVideoDuration(videoId: string): Promise<number> {
+    const url = 'https://www.googleapis.com/youtube/v3/videos';
+    const params = { part: 'contentDetails', id: videoId, key: this.YOUTUBE_API_KEY };
+    const response = await firstValueFrom(this.httpService.get(url, { params }));
+    const duration = response.data.items?.[0]?.contentDetails?.duration || 'PT0S';
+    return this._parseISO8601Duration(duration);
+  }
+
+  private _parseISO8601Duration(duration: string): number {
+    const matches = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!matches) return 0;
+    return (parseInt(matches[1] || '0') * 3600) + (parseInt(matches[2] || '0') * 60) + parseInt(matches[3] || '0');
+  }
+
+  private _formatSecondsToMMSS(s: number): string {
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+  }
+
   private extractVideoId(url: string): string {
-    const regex = /(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/;
-    return url.match(regex)?.[1] || 'ID_NOT_FOUND';
+    return url.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/)?.[1] || 'ID_NOT_FOUND';
+  }
+
+  async updateProgress(quizId: string, completedIds: string[]): Promise<IQuiz> {
+    const quiz = await this.quizModel.findById(quizId);
+    if (!quiz) throw new NotFoundException('Brak quizu.');
+    quiz.completedQuestions = Array.from(new Set([...quiz.completedQuestions, ...completedIds]));
+    return quiz.save();
   }
 }
