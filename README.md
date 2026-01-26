@@ -3,17 +3,17 @@
 ### Projekt Inżynierski
 Aplikacja webowa wspierająca proces uczenia się poprzez automatyczne generowanie pytań sprawdzających wiedzę na podstawie przesłanych materiałów PDF oraz synchronizację ich z materiałami wideo z serwisu YouTube.
 
-## 📌 O projekcie
+##  O projekcie
 Głównym celem projektu jest ułatwienie przyswajania wiedzy z notatek lub dokumentów. System wykorzystuje modele językowe (LLM) do analizy treści tekstowej i tworzenia spersonalizowanych testów, które są osadzane na osi czasu wybranego filmu.
 
-## 🚀 Kluczowe funkcjonalności
+##  Kluczowe funkcjonalności
 * **Ekstrakcja treści**: Wyodrębnianie tekstu z wybranych stron dokumentów PDF przy użyciu bibliotek `pdf-lib` oraz `pdf-parse`.
 * **Generowanie pytań przez AI**: Wykorzystanie modelu **Gemini 2.0 Flash** do tworzenia pytań jednokrotnego wyboru na podstawie kontekstu przesłanych notatek.
 * **Interaktywny Odtwarzacz**: Synchronizacja pytań z czasem trwania wideo na YouTube, co pozwala na sprawdzanie wiedzy w trakcie oglądania.
 * **Zarządzanie Sesjami**: Możliwość przeglądania historii wygenerowanych quizów oraz śledzenia postępów.
 * **System Autoryzacji**: Bezpieczny dostęp dzięki implementacji JWT oraz Passport.js.
 
-## 🛠️ Stos technologiczny
+##  Stos technologiczny
 
 ### Backend (NestJS)
 * **Framework**: NestJS.
@@ -28,7 +28,7 @@ Głównym celem projektu jest ułatwienie przyswajania wiedzy z notatek lub doku
 * **Routing**: React Router DOM.
 * **Umiędzynarodowienie**: i18next.
 
-## 📂 Struktura projektu
+##  Struktura projektu
 * `/backend` – Logika serwerowa, integracja z AI i bazą danych.
 * `/frontend` – Interfejs użytkownika i komunikacja z API.
 * `/uploads` – Magazyn dla przesłanych dokumentów PDF.
