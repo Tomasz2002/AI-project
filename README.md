@@ -47,8 +47,7 @@ MONGODB_URI=mongodb://localhost:27017
 DB_NAME=ai-project
 JWT_SECRET=twoj_sekretny_klucz
 GEMINI_API_KEY=twoj_klucz_gemini
-YOUTUBE_API_KEY=twoj_klucz_youtube
-```
+YOUTUBE_API_KEY=twoj_klucz_youtube```
 Uruchomienie
     Backend:
     Bash
