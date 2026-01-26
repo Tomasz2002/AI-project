@@ -16,8 +16,4 @@ export class GenerateQuizDto {
   @IsInt()
   @Min(1)
   quizCount: number;
-
-  @IsInt()
-  @Min(1)
-  questionsToUnlock: number;
 }

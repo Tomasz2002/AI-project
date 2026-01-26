@@ -1,11 +1,5 @@
-// src/services/quizApi.ts
-
 const API_BASE_URL = '/api/quiz';
 
-/**
- * Funkcja pomocnicza do pobierania nagłówków autoryzacyjnych.
- * @param isFormData - Czy żądanie wysyła pliki (FormData nie wymaga ręcznego ustawiania Content-Type)
- */
 const getHeaders = (isFormData = false) => {
   const token = localStorage.getItem('token');
   const headers: HeadersInit = {};
@@ -21,21 +15,14 @@ const getHeaders = (isFormData = false) => {
   return headers;
 };
 
-/**
- * Funkcja do obsługi błędów API
- */
 const handleApiError = async (response: Response) => {
   if (!response.ok) {
-    // Próba pobrania komunikatu o błędzie z backendu (np. z BadRequestException)
     const errorData = await response.json().catch(() => ({ message: 'Wystąpił nieznany błąd serwera.' }));
     throw new Error(errorData.message || `Błąd HTTP: ${response.status}`);
   }
   return response.json();
 };
 
-/**
- * Krok 1: Wysyła materiały (link YouTube i plik) na serwer.
- */
 export const uploadMaterials = async (youtubeUrl: string, file: File): Promise<{ sessionId: string }> => {
   const formData = new FormData();
   formData.append('youtubeUrl', youtubeUrl);
@@ -43,22 +30,18 @@ export const uploadMaterials = async (youtubeUrl: string, file: File): Promise<{
 
   const response = await fetch(`${API_BASE_URL}/materials`, {
     method: 'POST',
-    headers: getHeaders(true), // Przekazujemy true, aby nie nadpisywać boundary FormData
+    headers: getHeaders(true),
     body: formData,
   });
 
   return handleApiError(response);
 };
 
-/**
- * Krok 2: Generuje quiz na podstawie ustawień i ID sesji.
- */
 export const generateQuiz = async (
   sessionId: string,
   pageFrom: number,
   pageTo: number,
-  quizCount: number,
-  questionsToUnlock: number
+  quizCount: number
 ): Promise<{ quizId: string }> => {
   const response = await fetch(`${API_BASE_URL}/generate`, {
     method: 'POST',
@@ -68,16 +51,12 @@ export const generateQuiz = async (
       pageFrom,
       pageTo,
       quizCount,
-      questionsToUnlock,
     }),
   });
 
   return handleApiError(response);
 };
 
-/**
- * Pobiera dane konkretnego quizu po jego ID (używane w Playerze).
- */
 export const getQuizById = async (quizId: string) => {
   const response = await fetch(`${API_BASE_URL}/${quizId}`, {
     method: 'GET',
@@ -86,10 +65,6 @@ export const getQuizById = async (quizId: string) => {
   return handleApiError(response);
 };
 
-/**
- * Pobiera listę wszystkich quizów stworzonych przez zalogowanego użytkownika.
- * Pozwala to na "powrót do sesji" z poziomu pulpitu/historii.
- */
 export const getMyQuizzes = async (): Promise<any[]> => {
   const response = await fetch(`${API_BASE_URL}/my-quizzes`, {
     method: 'GET',
@@ -98,10 +73,6 @@ export const getMyQuizzes = async (): Promise<any[]> => {
   return handleApiError(response);
 };
 
-/**
- * Aktualizuje postęp użytkownika w danym quizie.
- * Wysyła listę ID pytań, na które użytkownik poprawnie odpowiedział.
- */
 export const updateQuizProgress = async (quizId: string, completedQuestionIds: string[]) => {
   const response = await fetch(`${API_BASE_URL}/${quizId}/progress`, {
     method: 'PATCH',
@@ -111,9 +82,6 @@ export const updateQuizProgress = async (quizId: string, completedQuestionIds: s
   return handleApiError(response);
 };
 
-/**
- * Usuwa quiz z historii użytkownika.
- */
 export const deleteQuiz = async (quizId: string) => {
   const response = await fetch(`${API_BASE_URL}/${quizId}`, {
     method: 'DELETE',

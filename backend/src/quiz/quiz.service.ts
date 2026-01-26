@@ -13,7 +13,6 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { PDFDocument } from 'pdf-lib';
-// tslint:disable-next-line:no-var-requires
 const pdfParse = require('pdf-parse');
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -45,13 +44,8 @@ export class QuizService {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.GEMINI_API_KEY}`;
       const response = await firstValueFrom(this.httpService.get(url));
-      console.log('--- DOSTĘPNE MODELE DLA TWOJEGO KLUCZA ---');
       const models = response.data.models.map((m: any) => m.name.replace('models/', ''));
-      console.log(models);
-      console.log('------------------------------------------');
-    } catch (error) {
-      console.error('Błąd diagnostyki:', error.message);
-    }
+    } catch (error) {}
   }
 
   async findById(id: string): Promise<IQuiz | null> {
@@ -80,7 +74,7 @@ export class QuizService {
   }
 
   async createQuiz(generateQuizDto: GenerateQuizDto, userId: string): Promise<IQuiz> {
-    const { sessionId, pageFrom, pageTo, quizCount, questionsToUnlock } = generateQuizDto;
+    const { sessionId, pageFrom, pageTo, quizCount } = generateQuizDto;
     const sessionData = sessionStore.get(sessionId);
     if (!sessionData) throw new NotFoundException('Sesja wygasła.');
 
@@ -90,7 +84,6 @@ export class QuizService {
     try {
       aiQuestions = await this._generateQuestionsWithGemini(extractedText, quizCount);
     } catch (error) {
-      console.warn('Uruchomiono tryb awaryjny (AI Fallback).');
       aiQuestions = Array.from({ length: quizCount }, (_, i) => ({
         questionText: `[Pytanie zapasowe] Treść niedostępna ze względu na przeciążenie AI.`,
         options: ['Opcja A', 'Opcja B', 'Poprawna', 'Opcja D'],
@@ -115,7 +108,6 @@ export class QuizService {
       documentFilePath: permanentPath,
       pageFrom, pageTo,
       quizQuestionCount: quizCount,
-      questionsToUnlock,
       generatedQuizzes: this._distributeQuestionsOnTimeline(aiQuestions, videoDuration),
       completedQuestions: [],
     });
@@ -124,12 +116,7 @@ export class QuizService {
     return newQuiz.save();
   }
 
-  /**
-   * Zaktualizowana metoda generowania:
-   * Próbuje po kolei modeli Gemini 2.5, 2.0 i wersji Lite.
-   */
   private async _generateQuestionsWithGemini(text: string, count: number): Promise<any[]> {
-    // Lista modeli w kolejności od najbardziej pożądanego (z Twojej listy)
     const modelsToTry = [
       'gemini-2.5-flash',
       'gemini-2.0-flash',
@@ -142,7 +129,6 @@ export class QuizService {
 
     for (const modelName of modelsToTry) {
       try {
-        console.log(`Próba generowania przez model: ${modelName}...`);
         const model = this.genAI.getGenerativeModel({
           model: modelName,
           generationConfig: { responseMimeType: 'application/json' },
@@ -152,22 +138,10 @@ export class QuizService {
         const response = await result.response;
         return JSON.parse(response.text());
       } catch (error: any) {
-        const status = error.status || error.response?.status;
-        
-        if (status === 429) {
-          console.warn(`⚠️ Model ${modelName}: Przekroczono limit zapytań (Quota exceeded).`);
-        } else if (status === 503 || error.message?.includes('overloaded')) {
-          console.warn(`⚠️ Model ${modelName}: Serwery są obecnie przeciążone.`);
-        } else if (status === 404) {
-          console.warn(`⚠️ Model ${modelName}: Nie znaleziono modelu (404).`);
-        } else {
-          console.error(`❌ Model ${modelName}: Nieznany błąd: ${error.message}`);
-        }
-        // Kontynuuj pętlę do następnego modelu
+        continue;
       }
     }
 
-    // Jeśli pętla się skończy i nic nie zadziałało
     throw new InternalServerErrorException('Wszystkie dostępne modele AI są obecnie przeciążone lub niedostępne.');
   }
 

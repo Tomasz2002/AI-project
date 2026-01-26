@@ -3,26 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import styles from './FormPage.module.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { uploadMaterials, generateQuiz } from '../../services/quizApi'; 
-// --- NOWY IMPORT ---
 import { PDFDocument } from 'pdf-lib';
 
 interface FormErrors {
   youtubeUrl?: string;
   file?: string;
   pageRange?: string;
-  questionsToUnlock?: string;
 }
 
 const FormPage: React.FC = () => {
   const navigate = useNavigate();
 
-  // --- Stany komponentu ---
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [pageFrom, setPageFrom] = useState(1);
   const [pageTo, setPageTo] = useState(10);
   const [quizCount, setQuizCount] = useState(10);
-  const [questionsToUnlock, setQuestionsToUnlock] = useState(1);
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -30,10 +26,8 @@ const FormPage: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // --- NOWY STAN ---
   const [maxPages, setMaxPages] = useState<number | null>(null);
 
-  // --- ZMODYFIKOWANA FUNKCJA ---
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
 
@@ -44,10 +38,8 @@ const FormPage: React.FC = () => {
     }
 
     setFile(selectedFile);
-    // Wyczyść błąd pliku, jeśli istniał
     setErrors(prev => ({ ...prev, file: undefined, pageRange: undefined }));
 
-    // Jeśli plik to PDF, policz strony
     if (selectedFile.type === 'application/pdf') {
       try {
         const arrayBuffer = await selectedFile.arrayBuffer();
@@ -55,23 +47,19 @@ const FormPage: React.FC = () => {
         const totalPages = pdfDoc.getPageCount();
         
         setMaxPages(totalPages);
-        setPageTo(totalPages); // Automatycznie ustaw 'Do' na maksymalną liczbę
-        setPageFrom(1);       // Zresetuj 'Od' do 1
+        setPageTo(totalPages);
+        setPageFrom(1);       
         
       } catch (error) {
-        console.error("Błąd podczas wczytywania PDF:", error);
         setMaxPages(null);
         setErrors(prev => ({ ...prev, file: 'Nie udało się przetworzyć pliku PDF.' }));
       }
     } else {
-      // Jeśli to DOCX lub inny plik, nie możemy policzyć stron
       setMaxPages(null);
     }
   };
 
-  // --- Logika walidacji ---
   const validateStep1 = (): boolean => {
-    // ... (bez zmian)
     const newErrors: FormErrors = {};
     const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
 
@@ -85,7 +73,6 @@ const FormPage: React.FC = () => {
       newErrors.file = 'Musisz dodać plik z notatkami.';
     }
 
-    // Sprawdź, czy nie ma błędu wczytywania PDF
     if (errors.file) {
         newErrors.file = errors.file;
     }
@@ -94,7 +81,6 @@ const FormPage: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // --- ZMODYFIKOWANA WALIDACJA ---
   const validateStep2 = (): boolean => {
     const newErrors: FormErrors = {};
 
@@ -103,33 +89,24 @@ const FormPage: React.FC = () => {
     } else if (pageTo < pageFrom) {
       newErrors.pageRange = 'Strona "do" nie może być mniejsza niż strona "od".';
     } else if (maxPages && pageTo > maxPages) {
-      // --- NOWA REGUŁA ---
       newErrors.pageRange = `Dokument ma tylko ${maxPages} stron. Zmień zakres.`;
-    }
-
-    if (questionsToUnlock < 1) {
-      newErrors.questionsToUnlock = 'Liczba pytań musi wynosić co najmniej 1.';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-
-  // --- Obsługa formularza ---
   const handleNextStep = async () => {
-    // Walidacja w handleNextStep musi też sprawdzać błędy pliku (np. błąd parsowania)
     if (!validateStep1() || !file || errors.file) return;
 
     setIsLoading(true);
-    setErrors({}); // Czyścimy błędy przed próbą wysłania
+    setErrors({});
 
     try {
       const data = await uploadMaterials(youtubeUrl, file);
       setSessionId(data.sessionId);
       setCurrentStep(2);
     } catch (error: any) {
-      // Błędy serwera (np. 400, 500)
       setErrors({ file: error.message || 'Wystąpił nieoczekiwany błąd serwera.' });
     } finally {
       setIsLoading(false);
@@ -144,7 +121,7 @@ const FormPage: React.FC = () => {
     setErrors({});
 
     try {
-      const result = await generateQuiz(sessionId, pageFrom, pageTo, quizCount, questionsToUnlock);
+      const result = await generateQuiz(sessionId, pageFrom, pageTo, quizCount);
       
       setIsSuccess(true);
       
@@ -153,14 +130,11 @@ const FormPage: React.FC = () => {
       }, 1500);
 
     } catch (error: any) {
-      // Backend mógł rzucić błąd BadRequestException (np. gdy DOCX zawiódł)
-      // Mimo walidacji frontendu, backend też ma swoją (i to jest dobre).
       setErrors({ pageRange: error.message || 'Wystąpił nieoczekiwany błąd podczas generowania quizu.' });
       setIsLoading(false); 
     }
   };
 
-  // --- Renderowanie komponentu (JSX) ---
   return (
     <div className={styles.pageWrapper}>
       <div className="container my-5">
@@ -172,7 +146,6 @@ const FormPage: React.FC = () => {
             </p>
 
             <form onSubmit={handleSubmit} noValidate>
-              {/* Krok 1: Materiały do nauki (bez zmian w JSX) */}
               {currentStep === 1 && (
                 <div className={styles.stepContainer}>
                   <div className={`card ${styles.formCard}`}>
@@ -207,7 +180,6 @@ const FormPage: React.FC = () => {
                           accept=".pdf,.docx"
                           required
                         />
-                        {/* Ten błąd wyświetli teraz błędy walidacji ORAZ błędy parsowania PDF */}
                         {errors.file && <div className="invalid-feedback">{errors.file}</div>}
                       </div>
                     </div>
@@ -230,7 +202,6 @@ const FormPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Krok 2: Ustawienia Quizu --- ZMIANY W JSX --- */}
               {currentStep === 2 && (
                 <div className={styles.stepContainer}>
                   <div className={`card ${styles.formCard}`}>
@@ -240,7 +211,6 @@ const FormPage: React.FC = () => {
                       <div className="row mb-3">
                         <label className={`form-label ${styles.formLabel}`}>
                           Zakres stron z dokumentu do analizy
-                          {/* --- NOWY TEKST --- */}
                           {maxPages && <span className="text-muted fw-normal ms-2">(Dokument ma {maxPages} stron)</span>}
                         </label>
                         <div className="col-md-6">
@@ -252,7 +222,6 @@ const FormPage: React.FC = () => {
                             value={pageFrom}
                             onChange={(e) => setPageFrom(Number(e.target.value))}
                             min="1"
-                            // --- NOWY ATRYBUT ---
                             max={maxPages || undefined}
                           />
                         </div>
@@ -265,14 +234,12 @@ const FormPage: React.FC = () => {
                             value={pageTo}
                             onChange={(e) => setPageTo(Number(e.target.value))}
                             min="1"
-                            // --- NOWY ATRYBUT ---
                             max={maxPages || undefined}
                           />
                         </div>
                         {errors.pageRange && <div className="invalid-feedback d-block mt-2">{errors.pageRange}</div>}
                       </div>
 
-                      {/* Reszta formularza (quizCount, questionsToUnlock) bez zmian */}
                       <div className="mb-3">
                         <label htmlFor="quizCount" className={`form-label ${styles.formLabel}`}>
                           Liczba pytań w quizie
@@ -289,25 +256,9 @@ const FormPage: React.FC = () => {
                           <option value="20">20 pytań (max)</option>
                         </select>
                       </div>
-
-                      <div>
-                        <label htmlFor="questionsToUnlock" className={`form-label ${styles.formLabel}`}>
-                          Wymagana liczba poprawnych odpowiedzi do odblokowania wideo
-                        </label>
-                        <input
-                          type="number"
-                          id="questionsToUnlock"
-                          className={`form-control ${errors.questionsToUnlock ? 'is-invalid' : ''}`}
-                          value={questionsToUnlock}
-                          onChange={(e) => setQuestionsToUnlock(Number(e.target.value))}
-                          min="1"
-                        />
-                        {errors.questionsToUnlock && <div className="invalid-feedback">{errors.questionsToUnlock}</div>}
-                      </div>
                     </div>
                   </div>
 
-                  {/* Przyciski (bez zmian) */}
                   <div className="d-flex gap-3 mt-4">
                     <button
                       type="button"
