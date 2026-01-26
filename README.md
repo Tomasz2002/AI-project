@@ -78,7 +78,7 @@ YOUTUBE_API_KEY=twoj_klucz_youtube
 ```bash
 cd backend
 npm install
-npm run dev
+npm run dev:start
 ```
 
 **Frontend:**
