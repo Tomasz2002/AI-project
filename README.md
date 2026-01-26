@@ -48,21 +48,20 @@ DB_NAME=ai-project
 JWT_SECRET=twoj_sekretny_klucz
 GEMINI_API_KEY=twoj_klucz_gemini
 YOUTUBE_API_KEY=twoj_klucz_youtube
-
+```
 Uruchomienie
-
     Backend:
     Bash
-
+```
     cd backend
     npm install
     npm run dev
-
+```
     Frontend:
     Bash
-
+```
     cd frontend
     npm install
     npm run dev
-
+```
 Projekt zrealizowany jako praca inżynierska.
