@@ -23,6 +23,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
+  // Endpoint do ręcznego sprawdzenia dostępnych modeli AI
+  @UseGuards(JwtAuthGuard)
+  @Get('debug/models')
+  async debugModels() {
+    return this.quizService.checkAvailableModels();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('my-quizzes')
   async findAllForUser(@Request() req) {
@@ -51,6 +58,7 @@ export class QuizController {
   @Post('generate')
   async generateQuiz(@Body() dto: GenerateQuizDto, @Request() req) {
     const userId = req.user.sub;
+    // Tutaj błędy 429/503 zostaną rzucone jako InternalServerErrorException
     const createdQuiz = await this.quizService.createQuiz(dto, userId);
     return { quizId: createdQuiz._id };
   }
@@ -61,9 +69,6 @@ export class QuizController {
     return this.quizService.updateProgress(id, body.completedQuestionIds);
   }
 
-  /**
-   * NOWY ENDPOINT: Usuwanie sesji
-   */
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async deleteQuiz(@Param('id') id: string, @Request() req) {

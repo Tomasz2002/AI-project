@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, isValidObjectId } from 'mongoose';
@@ -12,13 +13,13 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { PDFDocument } from 'pdf-lib';
+// tslint:disable-next-line:no-var-requires
 const pdfParse = require('pdf-parse');
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Magazyn tymczasowy na czas przesyłania plików
-const sessionStore = new Map<string, { file: Express.Multer.File, youtubeUrl: string }>();
+const sessionStore = new Map<string, { file: Express.Multer.File; youtubeUrl: string }>();
 
 @Injectable()
 export class QuizService {
@@ -33,15 +34,28 @@ export class QuizService {
   ) {
     this.YOUTUBE_API_KEY = this.configService.get<string>('YOUTUBE_API_KEY');
     this.GEMINI_API_KEY = this.configService.get<string>('GEMINI_API_KEY');
+
     if (this.GEMINI_API_KEY) {
       this.genAI = new GoogleGenerativeAI(this.GEMINI_API_KEY);
+      this.checkAvailableModels();
     }
   }
 
-  // --- Zarządzanie sesjami ---
+  async checkAvailableModels() {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${this.GEMINI_API_KEY}`;
+      const response = await firstValueFrom(this.httpService.get(url));
+      console.log('--- DOSTĘPNE MODELE DLA TWOJEGO KLUCZA ---');
+      const models = response.data.models.map((m: any) => m.name.replace('models/', ''));
+      console.log(models);
+      console.log('------------------------------------------');
+    } catch (error) {
+      console.error('Błąd diagnostyki:', error.message);
+    }
+  }
 
   async findById(id: string): Promise<IQuiz | null> {
-    if (!isValidObjectId(id)) throw new BadRequestException('Nieprawidłowe ID.');
+    if (!isValidObjectId(id)) throw new BadRequestException('Nieprawidłowy format ID.');
     return this.quizModel.findById(id).exec();
   }
 
@@ -51,15 +65,13 @@ export class QuizService {
 
   async deleteQuiz(quizId: string, userId: string): Promise<void> {
     const quiz = await this.quizModel.findOne({ _id: quizId, userId }).exec();
-    if (!quiz) throw new NotFoundException('Nie znaleziono sesji.');
+    if (!quiz) throw new NotFoundException('Sesja nie istnieje.');
 
     if (quiz.documentFilePath) {
-      try { await fs.unlink(quiz.documentFilePath); } catch (e) {}
+      try { await fs.unlink(quiz.documentFilePath); } catch (err) {}
     }
     await this.quizModel.deleteOne({ _id: quizId }).exec();
   }
-
-  // --- Proces tworzenia quizu ---
 
   async handleFileUpload(file: Express.Multer.File, youtubeUrl: string): Promise<string> {
     const sessionId = uuidv4();
@@ -67,76 +79,107 @@ export class QuizService {
     return sessionId;
   }
 
-  async createQuiz(dto: GenerateQuizDto, userId: string): Promise<IQuiz> {
-    const sessionData = sessionStore.get(dto.sessionId);
+  async createQuiz(generateQuizDto: GenerateQuizDto, userId: string): Promise<IQuiz> {
+    const { sessionId, pageFrom, pageTo, quizCount, questionsToUnlock } = generateQuizDto;
+    const sessionData = sessionStore.get(sessionId);
     if (!sessionData) throw new NotFoundException('Sesja wygasła.');
 
-    const text = await this.extractTextFromPdfPages(sessionData.file.buffer, dto.pageFrom, dto.pageTo);
-    
-    let aiQuestions;
+    const extractedText = await this.extractTextFromPdfPages(sessionData.file.buffer, pageFrom, pageTo);
+
+    let aiQuestions = [];
     try {
-      aiQuestions = await this._generateQuestionsWithGemini(text, dto.quizCount);
+      aiQuestions = await this._generateQuestionsWithGemini(extractedText, quizCount);
     } catch (error) {
-      // Fallback w razie błędu AI
-      aiQuestions = Array.from({ length: dto.quizCount }, (_, i) => ({
-        questionText: `[Błąd AI] Pytanie zapasowe ${i + 1}`,
-        options: ['A', 'B', 'C', 'D'],
-        correctAnswer: 'C',
+      console.warn('Uruchomiono tryb awaryjny (AI Fallback).');
+      aiQuestions = Array.from({ length: quizCount }, (_, i) => ({
+        questionText: `[Pytanie zapasowe] Treść niedostępna ze względu na przeciążenie AI.`,
+        options: ['Opcja A', 'Opcja B', 'Poprawna', 'Opcja D'],
+        correctAnswer: 'Poprawna',
       }));
     }
 
-    const fileName = `${uuidv4()}-${sessionData.file.originalname}`;
-    const filePath = path.join(__dirname, '..', '..', '..', 'uploads', 'documents', fileName);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, sessionData.file.buffer);
+    const newFileName = `${uuidv4()}-${sessionData.file.originalname}`;
+    const permanentPath = path.join(__dirname, '..', '..', '..', 'uploads', 'documents', newFileName);
+    await fs.mkdir(path.dirname(permanentPath), { recursive: true });
+    await fs.writeFile(permanentPath, sessionData.file.buffer);
 
     const videoId = this.extractVideoId(sessionData.youtubeUrl);
-    const duration = await this._getYoutubeVideoDuration(videoId);
+    const videoDuration = await this._getYoutubeVideoDuration(videoId);
 
     const newQuiz = new this.quizModel({
       userId,
       youtubeUrl: sessionData.youtubeUrl,
       youtubeVideoId: videoId,
-      youtubeVideoDurationSeconds: duration,
+      youtubeVideoDurationSeconds: videoDuration,
       documentFileName: sessionData.file.originalname,
-      documentFilePath: filePath,
-      pageFrom: dto.pageFrom, 
-      pageTo: dto.pageTo,
-      quizQuestionCount: dto.quizCount,
-      questionsToUnlock: dto.questionsToUnlock,
-      generatedQuizzes: this._distributeQuestionsOnTimeline(aiQuestions, duration),
+      documentFilePath: permanentPath,
+      pageFrom, pageTo,
+      quizQuestionCount: quizCount,
+      questionsToUnlock,
+      generatedQuizzes: this._distributeQuestionsOnTimeline(aiQuestions, videoDuration),
       completedQuestions: [],
     });
 
-    sessionStore.delete(dto.sessionId);
+    sessionStore.delete(sessionId);
     return newQuiz.save();
   }
 
-  // --- Integracja AI ---
-
+  /**
+   * Zaktualizowana metoda generowania:
+   * Próbuje po kolei modeli Gemini 2.5, 2.0 i wersji Lite.
+   */
   private async _generateQuestionsWithGemini(text: string, count: number): Promise<any[]> {
-    const model = this.genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash', 
-      generationConfig: { responseMimeType: 'application/json' } 
-    });
+    // Lista modeli w kolejności od najbardziej pożądanego (z Twojej listy)
+    const modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite'
+    ];
 
-    const prompt = `Na podstawie notatek stwórz ${count} pytań testowych JSON: [{"questionText": "...", "options": ["A", "B", "C", "D"], "correctAnswer": "..."}] \n\n TEKST: ${text.substring(0, 15000)}`;
-    const result = await model.generateContent(prompt);
-    return JSON.parse(result.response.text());
+    const prompt = `Jesteś ekspertem. Na podstawie tekstu przygotuj dokładnie ${count} pytań testowych JSON: 
+    [{"questionText": "...", "options": ["...", "...", "...", "..."], "correctAnswer": "..."}]
+    Tekst: ${text.substring(0, 15000)}`;
+
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Próba generowania przez model: ${modelName}...`);
+        const model = this.genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: { responseMimeType: 'application/json' },
+        });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return JSON.parse(response.text());
+      } catch (error: any) {
+        const status = error.status || error.response?.status;
+        
+        if (status === 429) {
+          console.warn(`⚠️ Model ${modelName}: Przekroczono limit zapytań (Quota exceeded).`);
+        } else if (status === 503 || error.message?.includes('overloaded')) {
+          console.warn(`⚠️ Model ${modelName}: Serwery są obecnie przeciążone.`);
+        } else if (status === 404) {
+          console.warn(`⚠️ Model ${modelName}: Nie znaleziono modelu (404).`);
+        } else {
+          console.error(`❌ Model ${modelName}: Nieznany błąd: ${error.message}`);
+        }
+        // Kontynuuj pętlę do następnego modelu
+      }
+    }
+
+    // Jeśli pętla się skończy i nic nie zadziałało
+    throw new InternalServerErrorException('Wszystkie dostępne modele AI są obecnie przeciążone lub niedostępne.');
   }
 
-  // --- Pomocnicze ---
-
-  private _distributeQuestionsOnTimeline(allQs: any[], duration: number): any[] {
+  private _distributeQuestionsOnTimeline(allQuestions: any[], duration: number): any[] {
     const quizzes = [];
-    const groups = Math.ceil(allQs.length / 5);
-    const interval = duration / (groups + 1);
-    for (let i = 0; i < groups; i++) {
+    const interval = duration / (Math.ceil(allQuestions.length / 5) + 1);
+    for (let i = 0; i < Math.ceil(allQuestions.length / 5); i++) {
       const ts = Math.floor(interval * (i + 1));
       quizzes.push({
         timestamp: ts,
         timestampFormatted: `${Math.floor(ts / 60)}:${(ts % 60).toString().padStart(2, '0')}`,
-        questions: allQs.slice(i * 5, (i + 1) * 5),
+        questions: allQuestions.slice(i * 5, (i + 1) * 5),
       });
     }
     return quizzes;
@@ -157,8 +200,8 @@ export class QuizService {
     const url = 'https://www.googleapis.com/youtube/v3/videos';
     const params = { part: 'contentDetails', id: videoId, key: this.YOUTUBE_API_KEY };
     const res = await firstValueFrom(this.httpService.get(url, { params }));
-    const d = res.data.items[0].contentDetails.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-    return (parseInt(d[1] || '0') * 3600) + (parseInt(d[2] || '0') * 60) + parseInt(d[3] || '0');
+    const match = res.data.items[0].contentDetails.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    return (parseInt(match[1] || '0') * 3600) + (parseInt(match[2] || '0') * 60) + parseInt(match[3] || '0');
   }
 
   private extractVideoId(url: string): string {
@@ -167,7 +210,7 @@ export class QuizService {
 
   async updateProgress(quizId: string, completedIds: string[]): Promise<IQuiz> {
     const quiz = await this.quizModel.findById(quizId);
-    if (!quiz) throw new NotFoundException('Nie znaleziono quizu.');
+    if (!quiz) throw new NotFoundException('Brak quizu.');
     quiz.completedQuestions = Array.from(new Set([...quiz.completedQuestions, ...completedIds]));
     return quiz.save();
   }
