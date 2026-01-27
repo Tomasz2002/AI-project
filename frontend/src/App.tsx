@@ -12,6 +12,9 @@ import NotFound from './pages/NotFound/NotFound';
 import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/RegisterPage/RegisterPage';
 import SessionsPage from './pages/SessionPage/SessionPage';
+import StudyRoom from './pages/StudyRoom/StudyRoom';
+import StudyRoomForm from './pages/StudyRoomForm/StudyRoomForm';
+
 function App() {
   const isAuthenticated = !!localStorage.getItem('token');
 
@@ -23,24 +26,26 @@ function App() {
       
       {/* Chronione trasy */}
       <Route path="/create-quiz" element={isAuthenticated ? <FormPage /> : <Navigate to="/login" />} />
+      <Route path="/create-study-room" element={isAuthenticated ? <StudyRoomForm /> : <Navigate to="/login" />} />
       <Route path="/quiz/:quizId" element={isAuthenticated ? <QuizPlayerPage /> : <Navigate to="/login" />} />
       <Route path="/sessions" element={isAuthenticated ? <SessionsPage /> : <Navigate to="/login" />} />
+      <Route path="/study-room/:quizId" element={isAuthenticated ? <StudyRoom /> : <Navigate to="/login" />} />
       
       <Route path="*" element={<NotFound />} />
     </Routes>
-  )
+  );
 
   const header = (
     <Routes>
       <Route path="*" element={<Header />} />
     </Routes>
-  )
- 
+  );
+
   const footer = (
     <Routes>
-       <Route path="*" element={<Footer />} />
+      <Route path="*" element={<Footer />} />
     </Routes>
-  )
+  );
 
   return (
     <Router>
