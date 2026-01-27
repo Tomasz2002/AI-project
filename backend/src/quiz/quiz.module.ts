@@ -6,7 +6,6 @@ import { Quiz, QuizSchema } from '../models/quiz.model';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
-import { StudyRoomGateway } from './study-room.gateway';
 
 @Module({
   imports: [
@@ -18,7 +17,6 @@ import { StudyRoomGateway } from './study-room.gateway';
   controllers: [QuizController],
   providers: [
     QuizService,
-    StudyRoomGateway,
   ],
 })
 export class QuizModule {}
