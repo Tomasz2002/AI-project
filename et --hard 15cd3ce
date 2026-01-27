@@ -1,0 +1,28 @@
+[33m453be55[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m feat: Add study room functionality with real-time collaboration
+[33m15cd3ce[m Enhance quiz model and service: add explanation field to questions and update prompt for question generation
+[33mbc7446f[m Refactor Footer component: remove navigation and legal links, update copyright notice
+[33mbe0784b[m Refactor quiz model and service: remove questionsToUnlock, update generateQuiz function, and clean up FormPage component
+[33mb00ad43[m readme fix
+[33m0d469ca[m readme
+[33m1fc04e0[m readme
+[33m4060837[m Update README to improve installation instructions and formatting
+[33m523707a[m Small readmefix
+[33m153b06e[m Update README and enhance QuizController and QuizService functionality; add AI model debugging endpoint and improve error handling
+[33mc89f916[m Implement quiz deletion functionality and enhance session management; update styles for improved UI
+[33mb1430da[m Add Google Generative AI integration for quiz generation and enhance QuizPlayerPage with a timeline feature
+[33mc4158c6[m Merge branch 'main' of https://github.com/Tomasz2002/AI-project
+[33m7632ce1[m Add SessionsPage component and integrate into routing; update Header for session navigation
+[33me59683c[m QuickFix
+[33m0548a5e[m Integrate Google Generative AI for quiz generation and enhance file handling in QuizService
+[33m743336a[m Addedd page for session selection
+[33m603a4b4[m Adding sessions for logged users
+[33mdcc75e2[m Implementing sessions of learining for each logged user
+[33m7cd0e37[m  implement user registration and login functionality with JWT authentication
+[33mf614650[m Refactor code structure for improved readability and maintainability
+[33ma58b28a[m Quiz player page quiz implementation and timestamps modifications
+[33m53a1756[m QuizPlayerPage & backend connection
+[33m7fa5cf6[m form addition
+[33m1dc772b[m MainPage header and footer implementation
+[33mbd720cd[m additional stuff installed
+[33macfb8fc[m Setting up the project
+[33m4f11d56[m Initial commit
