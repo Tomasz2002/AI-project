@@ -3,15 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import YouTube, { YouTubePlayer, YouTubeProps } from 'react-youtube';
 import styles from './QuizPlayerPage.module.scss';
 import 'bootstrap/dist/css/bootstrap.min.css';
-// Importujemy zaktualizowane funkcje z serwisu
 import { getQuizById, updateQuizProgress } from '../../services/quizApi';
 
-// Interfejsy danych
 interface IQuestion {
   _id?: string;
   questionText: string;
   options: string[];
   correctAnswer: string;
+  explanation: string;
 }
 
 interface IGeneratedQuiz {
@@ -35,12 +34,10 @@ const QuizPlayerPage: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
 
-  // Stany do danych
   const [quizData, setQuizData] = useState<IQuizData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Stany do obsługi interaktywności
   const playerRef = useRef<YouTubePlayer | null>(null);
   const [showQuiz, setShowQuiz] = useState<boolean>(false);
   const [currentQuiz, setCurrentQuiz] = useState<IGeneratedQuiz | null>(null);
@@ -52,14 +49,12 @@ const QuizPlayerPage: React.FC = () => {
   const [showFeedback, setShowFeedback] = useState<boolean>(false);
   const [awaitingAcknowledgment, setAwaitingAcknowledgment] = useState<boolean>(false);
 
-  // Funkcja pomocnicza do wyciągania ID wideo
   const getYouTubeVideoId = (url: string): string | null => {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/i;
     const match = url.match(regex);
     return match ? match[1] : null;
   };
   
-  // Pobieranie danych quizu przy użyciu serwisu API
   useEffect(() => {
     const fetchQuizData = async () => {
       if (!quizId) {
@@ -68,7 +63,6 @@ const QuizPlayerPage: React.FC = () => {
         return;
       }
 
-      // Sprawdzenie czy użytkownik jest zalogowany
       if (!localStorage.getItem('token')) {
         navigate('/login');
         return;
@@ -85,7 +79,6 @@ const QuizPlayerPage: React.FC = () => {
         data.youtubeVideoId = videoId;
         setQuizData(data);
       } catch (err: any) {
-        console.error("Błąd pobierania danych:", err);
         setError(err.message || 'Wystąpił nieoczekiwany błąd.');
       } finally {
         setIsLoading(false);
@@ -94,7 +87,6 @@ const QuizPlayerPage: React.FC = () => {
     fetchQuizData();
   }, [quizId, navigate]);
 
-  // Monitorowanie czasu wideo
   useEffect(() => {
     const interval = setInterval(() => {
       if (playerRef.current && quizData && typeof playerRef.current.getPlayerState === 'function' && playerRef.current.getPlayerState() === 1) {
@@ -118,7 +110,6 @@ const QuizPlayerPage: React.FC = () => {
     return () => clearInterval(interval);
   }, [quizData, lastShownQuizIndex]);
 
-  // Obsługa kliknięcia odpowiedzi z zapisem postępu
   const handleAnswerClick = async (option: string) => {
     if (selectedAnswer || !currentQuiz || !quizId) return;
 
@@ -134,9 +125,7 @@ const QuizPlayerPage: React.FC = () => {
       try {
         const progressId = question._id || `q_${currentQuestionIndex}`;
         await updateQuizProgress(quizId, [progressId]);
-      } catch (err) {
-        console.warn("Nie udało się zapisać postępu na serwerze.");
-      }
+      } catch (err) {}
 
       setTimeout(() => {
         if (currentQuestionIndex < currentQuiz.questions.length - 1) {
@@ -145,7 +134,7 @@ const QuizPlayerPage: React.FC = () => {
           setIsAnswerCorrect(null);
           setShowFeedback(false);
         }
-      }, 1500);
+      }, 3000);
     } else {
       setAwaitingAcknowledgment(true);
     }
@@ -172,7 +161,7 @@ const QuizPlayerPage: React.FC = () => {
         setShowQuiz(false);
         setCurrentQuiz(null);
         playerRef.current?.playVideo();
-      }, 2000); 
+      }, 3000); 
     }
   }, [answeredQuestionsCount, currentQuiz, awaitingAcknowledgment]);
 
@@ -240,14 +229,17 @@ const QuizPlayerPage: React.FC = () => {
                   
                   <div className={styles.feedbackMessage}>
                     {showFeedback && (
-                      isAnswerCorrect ? (
-                        <div className="alert alert-success">✓ Poprawna odpowiedź!</div>
-                      ) : (
-                        <div className={`alert alert-danger ${styles.clickableFeedback}`} onClick={handleAcknowledgeIncorrect}>
-                          ✗ Niepoprawna odpowiedź. Poprawna to: {currentQuestion.correctAnswer}
-                          <br /><small><strong>(Kliknij, aby kontynuować)</strong></small>
-                        </div>
-                      )
+                      <div className={`alert ${isAnswerCorrect ? 'alert-success' : 'alert-danger'}`}>
+                        <strong>{isAnswerCorrect ? '✓ Poprawnie!' : '✗ Niepoprawnie.'}</strong>
+                        {!isAnswerCorrect && <div>Poprawna odpowiedź: {currentQuestion.correctAnswer}</div>}
+                        <hr />
+                        <p className="mb-0"><strong>Wyjaśnienie:</strong> {currentQuestion.explanation}</p>
+                        {!isAnswerCorrect && (
+                          <div className="mt-2" style={{cursor: 'pointer', textDecoration: 'underline'}} onClick={handleAcknowledgeIncorrect}>
+                            Kliknij, aby kontynuować
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -257,7 +249,6 @@ const QuizPlayerPage: React.FC = () => {
         )}
       </div>
 
-      {/* Nowa sekcja: Oś czasu quizów */}
       <div className={`card ${styles.infoCard} mt-4`}>
         <div className="card-header">⏱️ Oś czasu quizów</div>
         <div className="card-body">
@@ -283,7 +274,6 @@ const QuizPlayerPage: React.FC = () => {
         </div>
       </div>
       
-      {/* Sekcja informacji o sesji */}
       <div className={`card ${styles.infoCard} mt-4`}>
         <div className="card-header">📋 Szczegóły Sesji</div>
         <div className="card-body">

@@ -17,6 +17,7 @@ export interface IQuiz extends Document {
       questionText: string;
       options: string[];
       correctAnswer: string;
+      explanation: string;
     }>;
   }>;
   createdAt: Date;
@@ -44,6 +45,7 @@ export const QuizSchema: Schema = new Schema({
           questionText: { type: String, required: true },
           options: [{ type: String, required: true }],
           correctAnswer: { type: String, required: true },
+          explanation: { type: String, required: true },
         },
       ],
     },

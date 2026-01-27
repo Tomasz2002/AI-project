@@ -88,6 +88,7 @@ export class QuizService {
         questionText: `[Pytanie zapasowe] Treść niedostępna ze względu na przeciążenie AI.`,
         options: ['Opcja A', 'Opcja B', 'Poprawna', 'Opcja D'],
         correctAnswer: 'Poprawna',
+        explanation: 'Brak wyjaśnienia (tryb awaryjny).',
       }));
     }
 
@@ -118,13 +119,20 @@ export class QuizService {
 
   private async _generateQuestionsWithGemini(text: string, count: number): Promise<any[]> {
     const modelsToTry = [
-      'gemini-2.5-flash',
       'gemini-2.0-flash',
-      'gemini-2.0-flash-lite'
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash'
     ];
 
-    const prompt = `Jesteś ekspertem. Na podstawie tekstu przygotuj dokładnie ${count} pytań testowych JSON: 
-    [{"questionText": "...", "options": ["...", "...", "...", "..."], "correctAnswer": "..."}]
+    const prompt = `Jesteś ekspertem edukacyjnym. Na podstawie podanego tekstu przygotuj dokładnie ${count} pytań testowych w formacie JSON.
+    Każdy obiekt w tablicy musi zawierać:
+    - "questionText": treść pytania
+    - "options": tablica 4 opcji
+    - "correctAnswer": treść poprawnej opcji
+    - "explanation": krótkie (2-3 zdania) wyjaśnienie, dlaczego ta odpowiedź jest prawidłowa na podstawie tekstu.
+
+    Format: [{"questionText": "...", "options": ["...", "...", "...", "..."], "correctAnswer": "...", "explanation": "..."}]
+    
     Tekst: ${text.substring(0, 15000)}`;
 
     for (const modelName of modelsToTry) {
