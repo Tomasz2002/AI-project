@@ -3,20 +3,21 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { QuizController } from './quiz.controller';
 import { QuizService } from './quiz.service';
 import { Quiz, QuizSchema } from '../models/quiz.model';
+import { RoomSchema } from '../models/room.model';
+import { RoomService } from './room.service';
+import { RoomGateway } from './room.gateway';
 import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
-import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Quiz.name, schema: QuizSchema }]),
+    MongooseModule.forFeature([
+      { name: Quiz.name, schema: QuizSchema },
+      { name: 'Room', schema: RoomSchema }
+    ]),
     HttpModule,
-    ConfigModule.forRoot(),
-    AuthModule,
   ],
   controllers: [QuizController],
-  providers: [
-    QuizService,
-  ],
+  providers: [QuizService, RoomService, RoomGateway],
+  exports: [QuizService],
 })
 export class QuizModule {}
