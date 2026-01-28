@@ -52,6 +52,21 @@ const MultiplayerGamePage: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
+    // Flatten questions from all quizzes
+    const allQuestions = React.useMemo(() => {
+        if (!quizData) return [];
+        if (quizData.questions && quizData.questions.length > 0) return quizData.questions;
+        if (quizData.generatedQuizzes) {
+            return quizData.generatedQuizzes.flatMap((gq: any) =>
+                gq.questions.map((q: any) => ({
+                    ...q,
+                    timestamp: gq.timestamp
+                }))
+            );
+        }
+        return [];
+    }, [quizData]);
+
     // 1. Init & Socket Listeners
     useEffect(() => {
         if (location.state?.quizData) {
@@ -139,12 +154,11 @@ const MultiplayerGamePage: React.FC = () => {
             if (!playerRef.current) return;
 
             const currentTime = playerRef.current.getCurrentTime();
-            const questions = quizData.questions || quizData.generatedQuizzes?.[0]?.questions || [];
-            const nextQ = questions[currentQuestionIndex];
+            // Use the flattened list
+            const nextQ = allQuestions[currentQuestionIndex];
 
             if (nextQ && nextQ.timestamp !== undefined) {
                 // Relaxed check: Just check if we passed the timestamp
-                // The gameState !== 'VIDEO' check protecting this block prevents loops
                 if (currentTime >= nextQ.timestamp) {
                     const socket = socketService.getSocket();
                     console.log('Front Host: Triggering question', currentQuestionIndex);
@@ -154,7 +168,7 @@ const MultiplayerGamePage: React.FC = () => {
         }, 500);
 
         return () => clearInterval(interval);
-    }, [isHost, gameState, quizData, currentQuestionIndex]);
+    }, [isHost, gameState, quizData, currentQuestionIndex, allQuestions]);
 
 
     const handleVideoStateChange = (e: any) => {
@@ -206,16 +220,15 @@ const MultiplayerGamePage: React.FC = () => {
         </div>
     );
 
-    const videoId = quizData.youtubeVideoId || 'aARsNGL-Xwc';
-    const questions = quizData.questions || [];
+    const videoId = quizData?.youtubeVideoId || 'aARsNGL-Xwc';
     const displayIndex = gameState === 'REVEAL' ? currentQuestionIndex - 1 : currentQuestionIndex;
-    const currentQ = questions[displayIndex];
+    const currentQ = allQuestions[displayIndex];
 
     return (
         <div className={styles.quizContainer}>
             {/* Header */}
             <div>
-                <h1>Biologia - Układ Słoneczny</h1>
+                <h1>{quizData.documentFileName ? quizData.documentFileName.replace('.pdf', '') : 'Biologia - Układ Słoneczny'}</h1>
                 <div className="d-flex justify-content-center gap-3 mb-4">
                     <span className="badge bg-secondary fs-6 p-2">PIN: {roomId}</span>
                     <span className="badge bg-primary fs-6 p-2">Graczy: {players.length}</span>
@@ -304,7 +317,17 @@ const MultiplayerGamePage: React.FC = () => {
                                                 <strong>Wyjaśnienie:</strong> {currentQ?.explanation}
                                                 {isHost && (
                                                     <div className="mt-2 text-center">
-                                                        <button className="btn btn-warning fw-bold" onClick={handleHostResume}>WZNÓW GRĘ</button>
+                                                        {(() => {
+                                                            const nextQ = allQuestions[currentQuestionIndex];
+                                                            const prevQ = allQuestions[currentQuestionIndex - 1];
+                                                            const isSameBlock = nextQ && prevQ && nextQ.timestamp === prevQ.timestamp;
+
+                                                            return (
+                                                                <button className="btn btn-warning fw-bold" onClick={handleHostResume}>
+                                                                    {isSameBlock ? 'NASTĘPNE PYTANIE ➡️' : 'WZNÓW GRĘ ▶️'}
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 )}
                                             </div>
@@ -322,32 +345,76 @@ const MultiplayerGamePage: React.FC = () => {
                 <div className="card-header">⏱️ Oś czasu quizów</div>
                 <div className="card-body">
                     <div className={styles.timestampList}>
-                        {(quizData?.questions || []).map((q: any, idx: number) => {
-                            const isPast = idx < currentQuestionIndex;
-                            const isCurrent = idx === currentQuestionIndex;
-                            const formatTime = (s: number) => {
-                                const m = Math.floor(s / 60);
-                                const sec = s % 60;
-                                return `${m}:${sec < 10 ? '0' : ''}${sec}`;
-                            };
+                        {quizData?.generatedQuizzes ? (
+                            // GROUPED VIEW (Real Data)
+                            quizData.generatedQuizzes.map((gq: any, idx: number) => {
+                                // Determining status for the whole group
+                                // This group covers questions from startIdx to endIdx
+                                const startIdx = quizData.generatedQuizzes.slice(0, idx).reduce((acc: number, curr: any) => acc + curr.questions.length, 0);
+                                const count = gq.questions.length;
+                                const endIdx = startIdx + count;
 
-                            return (
-                                <div key={idx} className={styles.timestampItem}>
-                                    <span className={styles.timestampBadge}>
-                                        {formatTime(q.timestamp)}
-                                    </span>
-                                    <span className={styles.timestampText}>
-                                        {isPast ? (
-                                            <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Ukończone</span>
-                                        ) : (isCurrent && gameState !== 'VIDEO' ? (
-                                            <span style={{ color: '#ffc107', fontWeight: 'bold' }}>🔥 TERAZ</span>
-                                        ) : (
-                                            <span style={{ color: '#6c757d' }}>⏳ Oczekuje</span>
-                                        ))}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                                const isPast = endIdx <= currentQuestionIndex; // All questions in this group done
+                                const isActive = currentQuestionIndex >= startIdx && currentQuestionIndex < endIdx; // We are currently in this group
+
+                                const formatTime = (s: number) => {
+                                    const m = Math.floor(s / 60);
+                                    const sec = s % 60;
+                                    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+                                };
+
+                                return (
+                                    <div key={idx} className={styles.timestampItem}>
+                                        <span className={styles.timestampBadge}>
+                                            {formatTime(gq.timestamp)}
+                                        </span>
+                                        <div className="d-flex flex-column">
+                                            <span className="fw-bold fs-6">
+                                                {count} {count === 1 ? 'Pytanie' : (count > 4 ? 'Pytań' : 'Pytania')}
+                                            </span>
+                                            <span className={styles.timestampText}>
+                                                {isPast ? (
+                                                    <span className="text-success fw-bold">✅ Zakończone</span>
+                                                ) : (isActive ? (
+                                                    <span className="text-warning fw-bold">🔥 Trwa teraz ({currentQuestionIndex - startIdx + 1}/{count})</span>
+                                                ) : (
+                                                    <span className="text-muted">⏳ Oczekuje</span>
+                                                ))}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            // FLAT VIEW (Mock Data fallback)
+                            allQuestions.map((q: any, idx: number) => {
+                                const isPast = idx < currentQuestionIndex;
+                                const isCurrent = idx === currentQuestionIndex;
+                                const formatTime = (s: number) => {
+                                    const m = Math.floor(s / 60);
+                                    const sec = s % 60;
+                                    return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+                                };
+
+                                return (
+                                    <div key={idx} className={styles.timestampItem}>
+                                        <span className={styles.timestampBadge}>
+                                            {formatTime(q.timestamp)}
+                                        </span>
+                                        <span className={styles.timestampText}>
+                                            {isPast ? (
+                                                <span className="text-success fw-bold">✅</span>
+                                            ) : (isCurrent && gameState !== 'VIDEO' ? (
+                                                <span className="text-warning fw-bold">🔥</span>
+                                            ) : (
+                                                <span className="text-muted">⏳</span>
+                                            ))}
+                                            <span className="ms-2">Pytanie {idx + 1}</span>
+                                        </span>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
             </div>

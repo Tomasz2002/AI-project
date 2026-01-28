@@ -15,7 +15,7 @@ interface FormErrors {
 
 const CreateRoomPage: React.FC = () => {
     // --- DEBUG: MOCK DATA CONFIGURATION ---
-    const USE_MOCK_DATA = true; // Set to false to use real AI generation
+    const USE_MOCK_DATA = false; // Set to false to use real AI generation
 
     const mockQuizData = {
         _id: 'mock-quiz-id',

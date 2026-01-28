@@ -62,6 +62,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server.to(roomId).emit('updatePlayerList', playersWithHost);
     }
 
+    private getAllQuestions(quizData: any) {
+        if (!quizData) return [];
+        // Prioritize flat questions if they exist and are populated
+        if (quizData.questions && quizData.questions.length > 0) return quizData.questions;
+        // Fallback to generatedQuizzes structure
+        if (quizData.generatedQuizzes) {
+            return quizData.generatedQuizzes.flatMap((gq: any) =>
+                gq.questions.map((q: any) => ({
+                    ...q,
+                    timestamp: gq.timestamp
+                }))
+            );
+        }
+        return [];
+    }
+
     private removePlayerFromRoom(clientId: string) {
         for (const roomId in this.rooms) {
             const room = this.rooms[roomId];
@@ -110,7 +126,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 isGameStarted: false,
                 answers: {},
                 settings: {
-                    questionCount: data.quizData.questions?.length || 0,
+                    questionCount: this.getAllQuestions(data.quizData).length,
                     timerSeconds: 20
                 }
             };
@@ -226,7 +242,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         room.answers[client.id] = data.answer;
 
         // Check correctness and update score
-        const questions = room.quizData.questions || room.quizData.generatedQuizzes?.[0]?.questions || [];
+        const questions = this.getAllQuestions(room.quizData);
         const currentQuestion = questions[room.currentQuestionIndex];
 
         if (currentQuestion && data.answer === currentQuestion.correctAnswer) {
@@ -300,8 +316,29 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         const room = this.rooms[data.roomId];
         if (!room || room.hostId !== client.id) return;
 
-        // Broadcast to resume video
-        this.server.to(data.roomId).emit('resumeVideo');
+        // Check if next question belongs to the same block (same timestamp)
+        // OR simply if there IS a next question, should we just force them to play it?
+        // User said: "az nei odpowiedz na 5 pytan na danym timestampie"
+        // So we should iterate through the block.
+
+        const questions = this.getAllQuestions(room.quizData);
+        const nextIdx = room.currentQuestionIndex; // indexed already incremented in submitAnswer
+        const nextQ = questions[nextIdx];
+        const prevQ = questions[nextIdx - 1]; // The one we just finished
+
+        console.log(`[Back] Resume Session. NextIdx: ${nextIdx}. Prev TS: ${prevQ?.timestamp}, Next TS: ${nextQ?.timestamp}`);
+
+        // If there is a next question AND it has the same timestamp as the previous one,
+        // it means we are in a "Block" of questions. Go directly to next question.
+        if (nextQ && prevQ && nextQ.timestamp === prevQ.timestamp) {
+            console.log('[Back] Next question in block detected. Triggering Question immediately.');
+            this.server.to(data.roomId).emit('showQuestion', { questionIndex: nextIdx });
+        } else {
+            // Otherwise, resume video
+            console.log('[Back] Block finished or no next question. Resuming video.');
+            this.server.to(data.roomId).emit('resumeVideo');
+        }
+
         room.answers = {}; // Reset answers for safety
     }
 
