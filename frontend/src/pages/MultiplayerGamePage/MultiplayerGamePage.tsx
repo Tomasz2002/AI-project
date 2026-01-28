@@ -3,30 +3,8 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import YouTube, { YouTubePlayer } from 'react-youtube';
 import { socketService } from '../../services/socketService';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import styles from './MultiplayerGamePage.module.scss';
 
-// Styles matching QuizPlayerPage aesthetic
-const pageStyle: React.CSSProperties = {
-    backgroundColor: '#1a1a1a',
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    color: 'white'
-};
-
-const overlayStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    zIndex: 2000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'white',
-    borderRadius: '8px' // Match rounded corners of video container if applicable
-};
 
 interface Player {
     id: string;
@@ -62,6 +40,17 @@ const MultiplayerGamePage: React.FC = () => {
 
     // Video Refs
     const playerRef = useRef<YouTubePlayer | null>(null);
+    const [currentTime, setCurrentTime] = useState(0);
+
+    // Debug: Force update time for UI
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (playerRef.current) {
+                setCurrentTime(playerRef.current.getCurrentTime());
+            }
+        }, 500);
+        return () => clearInterval(interval);
+    }, []);
 
     // 1. Init & Socket Listeners
     useEffect(() => {
@@ -115,6 +104,11 @@ const MultiplayerGamePage: React.FC = () => {
             if (data.nextQuestionIndex !== undefined) setCurrentQuestionIndex(data.nextQuestionIndex);
         });
 
+        socket.on('gameEnded', (data: any) => {
+            setPlayers(data.players);
+            setGameOver(true);
+        });
+
         socket.emit('getRoomInfo', { roomId });
 
         return () => {
@@ -123,6 +117,7 @@ const MultiplayerGamePage: React.FC = () => {
             socket.off('showQuestion');
             socket.off('resumeVideo');
             socket.off('roundFinished');
+            socket.off('gameEnded');
         };
     }, [location.state, roomId]);
 
@@ -137,20 +132,26 @@ const MultiplayerGamePage: React.FC = () => {
 
     // 3. Host Logic (Time Check)
     useEffect(() => {
-        if (!isHost || gameState !== 'VIDEO' || !quizData || !playerRef.current) return;
+        if (!isHost || gameState !== 'VIDEO' || !quizData) return;
 
         const interval = setInterval(() => {
+            // Check playerRef inside logic
+            if (!playerRef.current) return;
+
             const currentTime = playerRef.current.getCurrentTime();
             const questions = quizData.questions || quizData.generatedQuizzes?.[0]?.questions || [];
             const nextQ = questions[currentQuestionIndex];
 
             if (nextQ && nextQ.timestamp !== undefined) {
-                if (currentTime >= nextQ.timestamp && currentTime < nextQ.timestamp + 1.5) {
+                // Relaxed check: Just check if we passed the timestamp
+                // The gameState !== 'VIDEO' check protecting this block prevents loops
+                if (currentTime >= nextQ.timestamp) {
                     const socket = socketService.getSocket();
+                    console.log('Front Host: Triggering question', currentQuestionIndex);
                     socket.emit('triggerQuestion', { roomId, questionIndex: currentQuestionIndex });
                 }
             }
-        }, 200);
+        }, 500);
 
         return () => clearInterval(interval);
     }, [isHost, gameState, quizData, currentQuestionIndex]);
@@ -174,22 +175,34 @@ const MultiplayerGamePage: React.FC = () => {
 
     const handleHostResume = () => {
         const socket = socketService.getSocket();
-        const totalQ = (quizData?.questions || []).length;
-        if (currentQuestionIndex >= totalQ) setGameOver(true);
-        else socket.emit('resumeSession', { roomId });
+        socket.emit('resumeSession', { roomId });
+    };
+
+    const handleHostFinish = () => {
+        const socket = socketService.getSocket();
+        if (window.confirm('Czy na pewno chcesz zakończyć sesję dla wszystkich?')) {
+            socket.emit('finishGame', { roomId });
+        }
     };
 
 
-    if (!quizData) return <div className="text-white bg-dark vh-100 d-flex align-items-center justify-content-center">Ładowanie danych...</div>;
+    if (!quizData) return <div className={styles.loadingContainer}><div className="spinner-border" role="status"><span className="visually-hidden">Ładowanie...</span></div></div>;
 
     if (gameOver) return (
-        <div className="bg-dark text-white vh-100 d-flex flex-column align-items-center justify-content-center">
+        <div className={`container ${styles.quizContainer} d-flex flex-column align-items-center justify-content-center`}>
             <h1>Koniec Gry</h1>
-            <h3>Ranking Końcowy</h3>
-            <ul>
-                {players.sort((a, b) => b.score - a.score).map((p, i) => <li key={i}>{p.username}: {p.score}</li>)}
-            </ul>
-            <button className="btn btn-primary" onClick={() => navigate('/')}>Wróć</button>
+            <div className={`card ${styles.quizCard} p-4 w-100`} style={{ maxWidth: '600px' }}>
+                <h3 className="text-center mb-4">Ranking Końcowy</h3>
+                <ul className="list-group mb-4">
+                    {players.sort((a, b) => b.score - a.score).map((p, i) => (
+                        <li key={i} className={`list-group-item d-flex justify-content-between align-items-center ${i === 0 ? 'bg-warning bg-opacity-25' : ''}`}>
+                            <span>#{i + 1} <strong>{p.username}</strong></span>
+                            <span className="badge bg-primary rounded-pill">{p.score} pkt</span>
+                        </li>
+                    ))}
+                </ul>
+                <button className="btn btn-primary w-100 py-2" onClick={() => navigate('/')}>Wróć do Menu</button>
+            </div>
         </div>
     );
 
@@ -199,30 +212,31 @@ const MultiplayerGamePage: React.FC = () => {
     const currentQ = questions[displayIndex];
 
     return (
-        <div style={pageStyle}>
-            {/* Header / Top Bar */}
-            <div className="container-fluid py-3 border-bottom border-secondary d-flex justify-content-between align-items-center bg-dark">
-                <div className="h4 mb-0 text-primary">Biologia - Układ Słoneczny</div>
-                <div className="d-flex align-items-center gap-3">
-                    <span className="badge bg-secondary fs-5">PIN: {roomId}</span>
-                    <span className="badge bg-primary fs-5">Graczy: {players.length}</span>
+        <div className={styles.quizContainer}>
+            {/* Header */}
+            <div>
+                <h1>Biologia - Układ Słoneczny</h1>
+                <div className="d-flex justify-content-center gap-3 mb-4">
+                    <span className="badge bg-secondary fs-6 p-2">PIN: {roomId}</span>
+                    <span className="badge bg-primary fs-6 p-2">Graczy: {players.length}</span>
+                    {isHost && (
+                        <button className="btn btn-danger btn-sm fw-bold" onClick={handleHostFinish}>ZAKOŃCZ SESJĘ</button>
+                    )}
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="container my-4 flex-grow-1 d-flex flex-column align-items-center">
-
-                {/* Video Container - Boxed like QuizPlayerPage */}
-                <div className="ratio ratio-16x9 shadow-lg rounded overflow-hidden position-relative" style={{ maxWidth: '900px', width: '100%', backgroundColor: '#000' }}>
+            {/* Video Wrapper */}
+            <div className={styles.playerAndQuizWrapper}>
+                <div className={styles.videoWrapper}>
                     <YouTube
                         videoId={videoId}
-                        className="w-100 h-100"
+                        className={styles.youtubePlayer}
                         opts={{
                             width: '100%',
                             height: '100%',
                             playerVars: {
-                                controls: isHost ? 1 : 0, // Restore host-only controls
-                                disablekb: !isHost,
+                                controls: isHost ? 1 : 0,
+                                disablekb: !isHost ? 1 : 0,
                                 rel: 0,
                                 modestbranding: 1
                             }
@@ -231,69 +245,122 @@ const MultiplayerGamePage: React.FC = () => {
                         onReady={(e) => playerRef.current = e.target}
                     />
 
-                    {/* OVERLAY - Inside the Video Box */}
-                    {(gameState === 'QUESTION' || gameState === 'REVEAL') && (
-                        <div style={overlayStyle}>
-                            <div className="p-4 text-center w-100">
-                                <h2 className="mb-4 text-warning">{gameState === 'QUESTION' ? `Pytanie (${timeLeft}s)` : 'Wyniki'}</h2>
-                                <h4 className="mb-4 text-white">{currentQ?.questionText}</h4>
-
-                                <div className="row g-2 justify-content-center">
-                                    {currentQ?.options.map((opt: string, idx: number) => {
-                                        let bg = 'btn-outline-light';
-                                        if (gameState === 'REVEAL' && roundResults) {
-                                            if (opt === roundResults.correctAnswer) bg = 'btn-success';
-                                            else if (opt === selectedAnswer && opt !== roundResults.correctAnswer) bg = 'btn-danger';
-                                            else bg = 'btn-secondary opacity-50';
-                                        } else if (selectedAnswer === opt) {
-                                            bg = 'btn-primary';
-                                        }
-
-                                        return (
-                                            <div key={idx} className="col-12 col-md-6">
-                                                <button className={`btn ${bg} w-100 py-2`} onClick={() => handleAnswer(opt)} disabled={gameState !== 'QUESTION' || !!selectedAnswer}>
-                                                    {opt}
-                                                </button>
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-
-                                {gameState === 'REVEAL' && (
-                                    <div className="mt-4">
-                                        <p className="text-info bg-dark d-inline-block px-3 py-1 rounded border border-info">
-                                            {currentQ?.explanation}
-                                        </p>
-                                        {isHost && (
-                                            <div className="mt-2">
-                                                <button className="btn btn-warning px-5 fw-bold" onClick={handleHostResume}>WZNÓW GRĘ</button>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    {/* Blocker for guests */}
+                    {!isHost && (
+                        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 10 }} onClick={(e) => e.stopPropagation()}></div>
                     )}
                 </div>
 
-                {/* Info Text below video */}
-                <div className="text-muted mt-2 text-center">
-                    {gameState === 'VIDEO' ? 'Oglądaj wideo - Pytanie pojawi się wkrótce...' : 'Odpowiedz na pytanie!'}
-                </div>
+                {/* Question Overlay (Fixed Modal) */}
+                {(gameState === 'QUESTION' || gameState === 'REVEAL') && (
+                    <div className={styles.quizOverlay}>
+                        <div className={styles.quizCard}>
+                            <div className="card-header">
+                                <h3>{gameState === 'QUESTION' ? `Pytanie (${timeLeft}s)` : 'Wyniki'}</h3>
+                                <p>Pytanie {currentQuestionIndex + (gameState === 'QUESTION' ? 1 : 0)}</p>
+                            </div>
+                            <div className="card-body">
+                                <div className={styles.questionBlock}>
+                                    <p><strong>Pytanie:</strong> {currentQ?.questionText}</p>
 
+                                    <div className={styles.optionsContainer}>
+                                        {currentQ?.options.map((opt: string, idx: number) => {
+                                            let buttonClass = '';
+                                            // Since styles are scoped, we use bootstrap classes mixed with style overrides? 
+                                            // The css uses specific selectors. Let's rely on the module class 'optionsContainer > button'
+                                            // But we need to add conditional classes manually if module doesn't cover them.
+                                            // Actually module has .optionsContainer button handle standard look.
+                                            // We need inline styles or extra classes for state.
+
+                                            // wait, the module 'optionsContainer button' handles base style.
+                                            // We need to override background for active/correct/wrong.
+
+                                            let styleOverride = {};
+                                            if (gameState === 'REVEAL' && roundResults) {
+                                                if (opt === roundResults.correctAnswer) styleOverride = { background: '#28a745', color: 'white', borderColor: '#28a745' };
+                                                else if (opt === selectedAnswer && opt !== roundResults.correctAnswer) styleOverride = { background: '#dc3545', color: 'white', borderColor: '#dc3545' };
+                                                else styleOverride = { opacity: 0.5 };
+                                            } else if (selectedAnswer === opt) {
+                                                // Highlighting selected
+                                                styleOverride = { background: '#007bff', color: 'white' };
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleAnswer(opt)}
+                                                    disabled={gameState !== 'QUESTION' || !!selectedAnswer}
+                                                    style={styleOverride}
+                                                >
+                                                    {opt}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    {gameState === 'REVEAL' && (
+                                        <div className={styles.feedbackMessage}>
+                                            <div className={`alert alert-info visible w-100`}>
+                                                <strong>Wyjaśnienie:</strong> {currentQ?.explanation}
+                                                {isHost && (
+                                                    <div className="mt-2 text-center">
+                                                        <button className="btn btn-warning fw-bold" onClick={handleHostResume}>WZNÓW GRĘ</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* Bottom Leaderboard Section */}
-            <div className="bg-dark border-top border-secondary py-3">
-                <div className="container">
-                    <h5 className="text-center text-muted mb-3">Ranking Graczy</h5>
-                    <div className="d-flex flex-wrap justify-content-center gap-4">
+            {/* Info Cards / Timeline */}
+            <div className={`card ${styles.infoCard} mt-4`}>
+                <div className="card-header">⏱️ Oś czasu quizów</div>
+                <div className="card-body">
+                    <div className={styles.timestampList}>
+                        {(quizData?.questions || []).map((q: any, idx: number) => {
+                            const isPast = idx < currentQuestionIndex;
+                            const isCurrent = idx === currentQuestionIndex;
+                            const formatTime = (s: number) => {
+                                const m = Math.floor(s / 60);
+                                const sec = s % 60;
+                                return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+                            };
+
+                            return (
+                                <div key={idx} className={styles.timestampItem}>
+                                    <span className={styles.timestampBadge}>
+                                        {formatTime(q.timestamp)}
+                                    </span>
+                                    <span className={styles.timestampText}>
+                                        {isPast ? (
+                                            <span style={{ color: '#28a745', fontWeight: 'bold' }}>✅ Ukończone</span>
+                                        ) : (isCurrent && gameState !== 'VIDEO' ? (
+                                            <span style={{ color: '#ffc107', fontWeight: 'bold' }}>🔥 TERAZ</span>
+                                        ) : (
+                                            <span style={{ color: '#6c757d' }}>⏳ Oczekuje</span>
+                                        ))}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+
+            {/* Leaderboard Card */}
+            <div className={`card ${styles.infoCard} mt-4`}>
+                <div className="card-header">🏆 Ranking Graczy</div>
+                <div className="card-body">
+                    <div className="d-flex flex-wrap gap-2">
                         {players.sort((a, b) => b.score - a.score).map((p, i) => (
-                            <div key={p.id} className="text-center bg-secondary bg-opacity-10 p-2 rounded px-4">
-                                <span className={`badge ${i === 0 ? 'bg-warning text-dark' : 'bg-secondary'} me-2`}>{i + 1}</span>
-                                <span className="fw-bold fs-5">{p.username}</span>
-                                <div className="small text-muted">{p.score} pkt</div>
-                            </div>
+                            <span key={i} className={`badge ${i === 0 ? 'bg-warning text-dark' : 'bg-light text-dark border'} p-2 fs-6`}>
+                                #{i + 1} {p.username}: {p.score}
+                            </span>
                         ))}
                     </div>
                 </div>

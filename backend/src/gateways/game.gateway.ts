@@ -264,6 +264,64 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         // If we used server.to(roomId), the sender would get it back and loop.
         client.to(data.roomId).emit('syncVideo', data);
     }
+
+    @SubscribeMessage('triggerQuestion')
+    handleTriggerQuestion(
+        @MessageBody() data: { roomId: string; questionIndex: number },
+        @ConnectedSocket() client: Socket,
+    ) {
+        console.log(`[Back] Trigger Question: Room ${data.roomId}, Index ${data.questionIndex}, Client ${client.id}`);
+
+        const room = this.rooms[data.roomId];
+        if (!room) {
+            console.error('[Back] Room not found!');
+            return;
+        }
+
+        console.log(`[Back] Room Host: ${room.hostId} vs Client: ${client.id}`);
+        if (room.hostId !== client.id) {
+            console.error('[Back] Host mismatch! Ignoring trigger.');
+            // Optional: Emit error to client so they know they aren't host
+            // client.emit('error', 'You are not the host');
+            return;
+        }
+
+        room.currentQuestionIndex = data.questionIndex;
+        // Broadcast to everyone to show question overlay
+        console.log('[Back] Broadcasting showQuestion');
+        this.server.to(data.roomId).emit('showQuestion', { questionIndex: data.questionIndex });
+    }
+
+    @SubscribeMessage('resumeSession')
+    handleResumeSession(
+        @MessageBody() data: { roomId: string },
+        @ConnectedSocket() client: Socket,
+    ) {
+        const room = this.rooms[data.roomId];
+        if (!room || room.hostId !== client.id) return;
+
+        // Broadcast to resume video
+        this.server.to(data.roomId).emit('resumeVideo');
+        room.answers = {}; // Reset answers for safety
+    }
+
+    @SubscribeMessage('finishGame')
+    handleFinishGame(
+        @MessageBody() data: { roomId: string },
+        @ConnectedSocket() client: Socket,
+    ) {
+        const room = this.rooms[data.roomId];
+        if (!room || room.hostId !== client.id) return;
+
+        // Broadcast game over to everyone
+        this.server.to(data.roomId).emit('gameEnded', {
+            players: room.players,
+            final: true
+        });
+
+        // Optional: Clean up room after delay? keeping it for now so they can see results
+        // delete this.rooms[data.roomId]; 
+    }
 }
 
 
