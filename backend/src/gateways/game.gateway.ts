@@ -14,6 +14,7 @@ interface Player {
     id: string;
     username: string;
     score: number;
+    isHost?: boolean;
 }
 
 interface Room {
@@ -50,6 +51,17 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.removePlayerFromRoom(client.id);
     }
 
+    private broadcastPlayerList(roomId: string) {
+        const room = this.rooms[roomId];
+        if (!room) return;
+
+        const playersWithHost = room.players.map(p => ({
+            ...p,
+            isHost: p.id === room.hostId
+        }));
+        this.server.to(roomId).emit('updatePlayerList', playersWithHost);
+    }
+
     private removePlayerFromRoom(clientId: string) {
         for (const roomId in this.rooms) {
             const room = this.rooms[roomId];
@@ -59,7 +71,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
                 const player = room.players[playerIndex];
                 room.players.splice(playerIndex, 1);
                 this.server.to(roomId).emit('playerLeft', { playerId: clientId, username: player.username });
-                this.server.to(roomId).emit('updatePlayerList', room.players);
+                this.broadcastPlayerList(roomId);
 
                 // If room is empty, delete it
                 if (room.players.length === 0) {
@@ -68,6 +80,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
                     // Assign new host if host left (optional, for now just grab the first one)
                     room.hostId = room.players[0].id;
                     this.server.to(roomId).emit('hostChanged', { newHostId: room.hostId });
+                    this.broadcastPlayerList(roomId);
                 }
                 break;
             }
@@ -142,7 +155,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
         client.join(data.roomId);
 
         this.server.to(data.roomId).emit('playerJoined', newPlayer);
-        this.server.to(data.roomId).emit('updatePlayerList', room.players);
+
+        const playersWithHost = room.players.map(p => ({ ...p, isHost: p.id === room.hostId }));
+        this.server.to(data.roomId).emit('updatePlayerList', playersWithHost);
 
         client.emit('joinedRoom', {
             event: 'joinedRoom',
@@ -163,8 +178,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     ) {
         const room = this.rooms[data.roomId];
         if (room) {
-            this.server.to(client.id).emit('updatePlayerList', room.players);
-            // Also optional: emit current game state if in progress
+            // Send to specific client, but reuse logic?
+            // broadcastPlayerList sends to ROOM. We want to send to CLIENT.
+            // Let's just inline it correctly here for single client
+            const playersWithHost = room.players.map(p => ({
+                ...p,
+                isHost: p.id === room.hostId
+            }));
+            this.server.to(client.id).emit('updatePlayerList', playersWithHost);
         }
     }
 
@@ -232,6 +253,16 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             room.currentQuestionIndex += 1;
             room.answers = {}; // Reset answers
         }
+    }
+    @SubscribeMessage('videoStateChange')
+    handleVideoStateChange(
+        @MessageBody() data: { roomId: string; state: string; time: number },
+        @ConnectedSocket() client: Socket,
+    ) {
+        // Broadcast to all others in room except sender? 
+        // client.to(roomId) broadcasts to everyone in room EXCEPT sender. This is perfect.
+        // If we used server.to(roomId), the sender would get it back and loop.
+        client.to(data.roomId).emit('syncVideo', data);
     }
 }
 

@@ -21,24 +21,29 @@ const CreateRoomPage: React.FC = () => {
         _id: 'mock-quiz-id',
         timestamp: Date.now(),
         documentFileName: 'Testowy Quiz (Mock)',
+        youtubeUrl: 'https://www.youtube.com/watch?v=aARsNGL-Xwc',
+        youtubeVideoId: 'aARsNGL-Xwc',
         questions: [
             {
                 questionText: 'Jakiego koloru jest niebo w słoneczny dzień?',
                 options: ['Zielone', 'Niebieskie', 'Czerwone', 'Fioletowe'],
                 correctAnswer: 'Niebieskie',
-                explanation: 'Rozpraszanie Rayleigha powoduje, że niebo jest niebieskie.'
+                explanation: 'Rozpraszanie Rayleigha powoduje, że niebo jest niebieskie.',
+                timestamp: 10 // Changed to 10s
             },
             {
                 questionText: 'Ile to 2 + 2?',
                 options: ['3', '5', '4', '22'],
                 correctAnswer: '4',
-                explanation: 'Podstawowa matematyka.'
+                explanation: 'Podstawowa matematyka.',
+                timestamp: 30 // Changed to 30s
             },
             {
                 questionText: 'Stolica Polski to:',
                 options: ['Kraków', 'Gdańsk', 'Warszawa', 'Poznań'],
                 correctAnswer: 'Warszawa',
-                explanation: 'Warszawa jest stolicą Polski od 1596 roku.'
+                explanation: 'Warszawa jest stolicą Polski od 1596 roku.',
+                timestamp: 60 // Changed to 60s
             }
         ]
     };
