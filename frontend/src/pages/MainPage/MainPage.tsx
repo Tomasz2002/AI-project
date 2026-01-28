@@ -35,13 +35,13 @@ const MainPage: React.FC = () => {
             <p className={styles.heroSubtitle}>
               Wklej link do YouTube, dodaj dokumenty i pozwól AI stworzyć spersonalizowany test.
             </p>
-            
+
             {/* Kontener z przyciskami w banerze */}
             <div className="d-flex flex-column align-items-center gap-3 mt-4">
               <Link to="/create-quiz" className={styles.ctaButton}>
                 Stwórz swój pierwszy quiz
               </Link>
-              <Link to="/create-study-room" className={styles.multiplayerCtaButton}>
+              <Link to="/multiplayer" className={styles.multiplayerCtaButton}>
                 <FaUsers className="me-2" /> Rywalizuj ze znajomymi
               </Link>
             </div>

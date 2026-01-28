@@ -1,0 +1,55 @@
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+    padding: 20px;
+}
+
+.card {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    max-width: 500px;
+    width: 100%;
+}
+
+.optionBlock {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #dee2e6;
+    transition: transform 0.2s;
+
+    &:hover {
+        transform: translateY(-2px);
+        border-color: #adb5bd;
+    }
+
+    h3 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+}
+
+.separator {
+    text-align: center;
+    color: #6c757d;
+    font-weight: bold;
+    font-size: 0.9rem;
+    position: relative;
+    
+    &::before, &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        width: 40%;
+        height: 1px;
+        background: #dee2e6;
+    }
+    
+    &::before { left: 0; }
+    &::after { right: 0; }
+}

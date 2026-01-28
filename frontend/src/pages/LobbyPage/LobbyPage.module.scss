@@ -1,0 +1,26 @@
+.lobbyContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 85vh;
+    padding: 20px;
+    background-color: #f0f2f5;
+}
+
+.lobbyCard {
+    width: 100%;
+    max-width: 450px;
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+
+    .card-header {
+        padding: 2rem 1rem;
+        background: linear-gradient(135deg, #007bff, #0056b3) !important;
+    }
+}
+
+.playersList {
+    background: #fff;
+}

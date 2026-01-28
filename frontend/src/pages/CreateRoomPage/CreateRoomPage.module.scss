@@ -1,0 +1,19 @@
+.pageWrapper {
+    min-height: 100vh;
+    background-color: #f5f7fa;
+    padding-top: 2rem;
+}
+
+.title {
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.formCard {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}

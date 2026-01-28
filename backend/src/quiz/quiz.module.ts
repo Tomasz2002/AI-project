@@ -7,6 +7,7 @@ import { RoomSchema } from '../models/room.model';
 import { RoomService } from './room.service';
 import { RoomGateway } from './room.gateway';
 import { HttpModule } from '@nestjs/axios';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -15,9 +16,10 @@ import { HttpModule } from '@nestjs/axios';
       { name: 'Room', schema: RoomSchema }
     ]),
     HttpModule,
+    AuthModule,
   ],
   controllers: [QuizController],
   providers: [QuizService, RoomService, RoomGateway],
   exports: [QuizService],
 })
-export class QuizModule {}
+export class QuizModule { }

@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { QuizModule } from './quiz/quiz.module';
 import { AuthModule } from './auth/auth.module';
+import { GameGateway } from './gateways/game.gateway';
 
 @Module({
   imports: [
@@ -25,5 +26,6 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
     QuizModule,
   ],
+  providers: [GameGateway],
 })
-export class AppModule {}
+export class AppModule { }

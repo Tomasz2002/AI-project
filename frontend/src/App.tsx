@@ -12,6 +12,10 @@ import NotFound from './pages/NotFound/NotFound';
 import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/RegisterPage/RegisterPage';
 import SessionsPage from './pages/SessionPage/SessionPage';
+import AccessRoomPage from './pages/AccessRoomPage/AccessRoomPage';
+import CreateRoomPage from './pages/CreateRoomPage/CreateRoomPage';
+import LobbyPage from './pages/LobbyPage/LobbyPage';
+import MultiplayerGamePage from './pages/MultiplayerGamePage/MultiplayerGamePage';
 
 function App() {
   const isAuthenticated = !!localStorage.getItem('token');
@@ -21,12 +25,16 @@ function App() {
       <Route path="/" element={<MainPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      
+
       {/* Chronione trasy */}
       <Route path="/create-quiz" element={isAuthenticated ? <FormPage /> : <Navigate to="/login" />} />
       <Route path="/quiz/:quizId" element={isAuthenticated ? <QuizPlayerPage /> : <Navigate to="/login" />} />
       <Route path="/sessions" element={isAuthenticated ? <SessionsPage /> : <Navigate to="/login" />} />
-      
+      <Route path="/multiplayer" element={isAuthenticated ? <AccessRoomPage /> : <Navigate to="/login" />} />
+      <Route path="/create-room" element={isAuthenticated ? <CreateRoomPage /> : <Navigate to="/login" />} />
+      <Route path="/lobby/:roomId" element={isAuthenticated ? <LobbyPage /> : <Navigate to="/login" />} />
+      <Route path="/game/:roomId" element={isAuthenticated ? <MultiplayerGamePage /> : <Navigate to="/login" />} />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
