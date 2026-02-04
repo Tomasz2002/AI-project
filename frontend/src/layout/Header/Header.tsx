@@ -59,7 +59,7 @@ const Header: React.FC = () => {
                 </li>
                 <li className="nav-item ms-lg-2 mt-2 mt-lg-0">
                    <Link to="/register" className={styles.ctaButton} style={{ textDecoration: 'none' }}>
-                     Wypróbuj za darmo
+                     Zarejestruj się
                    </Link>
                 </li>
               </>

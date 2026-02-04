@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-      - MONGO_URI=mongodb://mongo:27017/ai-project
+      - MONGODB_URI=mongodb://mongo:27017
       # Add other ENVs here (e.g., OPENAI_API_KEY) or use an .env file
     env_file:
       - ./backend/.env
